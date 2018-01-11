@@ -1,0 +1,11 @@
+prefix=/home/moussa/dev/projects/component-native-ogre3d/target/classes/linux64
+exec_prefix=${prefix}
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+Name: OGRE-MeshLodGenerator
+Description: Mesh Lod Generator for OGRE
+Version: 1.10.11
+Requires: OGRE = 1.10.11
+Libs: -L${libdir} -lOgreMeshLodGenerator
+Cflags: -I${includedir}/OGRE/MeshLodGenerator -pthread

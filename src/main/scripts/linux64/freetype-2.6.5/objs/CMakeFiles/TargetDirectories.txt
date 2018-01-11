@@ -1,0 +1,10 @@
+/home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/freetype-2.6.5/objs/CMakeFiles/install/strip.dir
+/home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/freetype-2.6.5/objs/CMakeFiles/install/local.dir
+/home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/freetype-2.6.5/objs/CMakeFiles/rebuild_cache.dir
+/home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/freetype-2.6.5/objs/CMakeFiles/edit_cache.dir
+/home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/freetype-2.6.5/objs/CMakeFiles/install.dir
+/home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/freetype-2.6.5/objs/CMakeFiles/list_install_components.dir
+/home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/freetype-2.6.5/objs/CMakeFiles/freetype.dir
+/home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/freetype-2.6.5/objs/CMakeFiles/dist.dir
+/home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/freetype-2.6.5/objs/CMakeFiles/package.dir
+/home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/freetype-2.6.5/objs/CMakeFiles/package_source.dir

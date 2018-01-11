@@ -1,0 +1,200 @@
+Determining if files direct.h exist failed with the following output:
+Change Dir: /home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/ZZIPlib-master/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_6c8b9/fast"
+/usr/bin/make -f CMakeFiles/cmTC_6c8b9.dir/build.make CMakeFiles/cmTC_6c8b9.dir/build
+make[1] : on entre dans le répertoire « /home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/ZZIPlib-master/CMakeFiles/CMakeTmp »
+Building C object CMakeFiles/cmTC_6c8b9.dir/CheckIncludeFiles.c.o
+/usr/bin/cc     -o CMakeFiles/cmTC_6c8b9.dir/CheckIncludeFiles.c.o   -c /home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/ZZIPlib-master/CMakeFiles/CMakeTmp/CheckIncludeFiles.c
+/home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/ZZIPlib-master/CMakeFiles/CMakeTmp/CheckIncludeFiles.c:2:20: fatal error: direct.h: Aucun fichier ou dossier de ce type
+ #include <direct.h>
+                    ^
+compilation terminated.
+CMakeFiles/cmTC_6c8b9.dir/build.make:65 : la recette pour la cible « CMakeFiles/cmTC_6c8b9.dir/CheckIncludeFiles.c.o » a échouée
+make[1]: *** [CMakeFiles/cmTC_6c8b9.dir/CheckIncludeFiles.c.o] Erreur 1
+make[1] : on quitte le répertoire « /home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/ZZIPlib-master/CMakeFiles/CMakeTmp »
+Makefile:126 : la recette pour la cible « cmTC_6c8b9/fast » a échouée
+make: *** [cmTC_6c8b9/fast] Erreur 2
+
+Source:
+/* */
+#include <direct.h>
+
+
+int main(void){return 0;}
+
+Determining if files io.h exist failed with the following output:
+Change Dir: /home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/ZZIPlib-master/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_b832b/fast"
+/usr/bin/make -f CMakeFiles/cmTC_b832b.dir/build.make CMakeFiles/cmTC_b832b.dir/build
+make[1] : on entre dans le répertoire « /home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/ZZIPlib-master/CMakeFiles/CMakeTmp »
+Building C object CMakeFiles/cmTC_b832b.dir/CheckIncludeFiles.c.o
+/usr/bin/cc     -o CMakeFiles/cmTC_b832b.dir/CheckIncludeFiles.c.o   -c /home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/ZZIPlib-master/CMakeFiles/CMakeTmp/CheckIncludeFiles.c
+/home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/ZZIPlib-master/CMakeFiles/CMakeTmp/CheckIncludeFiles.c:2:16: fatal error: io.h: Aucun fichier ou dossier de ce type
+ #include <io.h>
+                ^
+compilation terminated.
+CMakeFiles/cmTC_b832b.dir/build.make:65 : la recette pour la cible « CMakeFiles/cmTC_b832b.dir/CheckIncludeFiles.c.o » a échouée
+make[1]: *** [CMakeFiles/cmTC_b832b.dir/CheckIncludeFiles.c.o] Erreur 1
+make[1] : on quitte le répertoire « /home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/ZZIPlib-master/CMakeFiles/CMakeTmp »
+Makefile:126 : la recette pour la cible « cmTC_b832b/fast » a échouée
+make: *** [cmTC_b832b/fast] Erreur 2
+
+Source:
+/* */
+#include <io.h>
+
+
+int main(void){return 0;}
+
+Determining if files ndir.h exist failed with the following output:
+Change Dir: /home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/ZZIPlib-master/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_f0e88/fast"
+/usr/bin/make -f CMakeFiles/cmTC_f0e88.dir/build.make CMakeFiles/cmTC_f0e88.dir/build
+make[1] : on entre dans le répertoire « /home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/ZZIPlib-master/CMakeFiles/CMakeTmp »
+Building C object CMakeFiles/cmTC_f0e88.dir/CheckIncludeFiles.c.o
+/usr/bin/cc     -o CMakeFiles/cmTC_f0e88.dir/CheckIncludeFiles.c.o   -c /home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/ZZIPlib-master/CMakeFiles/CMakeTmp/CheckIncludeFiles.c
+/home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/ZZIPlib-master/CMakeFiles/CMakeTmp/CheckIncludeFiles.c:2:18: fatal error: ndir.h: Aucun fichier ou dossier de ce type
+ #include <ndir.h>
+                  ^
+compilation terminated.
+CMakeFiles/cmTC_f0e88.dir/build.make:65 : la recette pour la cible « CMakeFiles/cmTC_f0e88.dir/CheckIncludeFiles.c.o » a échouée
+make[1]: *** [CMakeFiles/cmTC_f0e88.dir/CheckIncludeFiles.c.o] Erreur 1
+make[1] : on quitte le répertoire « /home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/ZZIPlib-master/CMakeFiles/CMakeTmp »
+Makefile:126 : la recette pour la cible « cmTC_f0e88/fast » a échouée
+make: *** [cmTC_f0e88/fast] Erreur 2
+
+Source:
+/* */
+#include <ndir.h>
+
+
+int main(void){return 0;}
+
+Determining if files sys/int_types.h exist failed with the following output:
+Change Dir: /home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/ZZIPlib-master/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_07d6c/fast"
+/usr/bin/make -f CMakeFiles/cmTC_07d6c.dir/build.make CMakeFiles/cmTC_07d6c.dir/build
+make[1] : on entre dans le répertoire « /home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/ZZIPlib-master/CMakeFiles/CMakeTmp »
+Building C object CMakeFiles/cmTC_07d6c.dir/CheckIncludeFiles.c.o
+/usr/bin/cc     -o CMakeFiles/cmTC_07d6c.dir/CheckIncludeFiles.c.o   -c /home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/ZZIPlib-master/CMakeFiles/CMakeTmp/CheckIncludeFiles.c
+/home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/ZZIPlib-master/CMakeFiles/CMakeTmp/CheckIncludeFiles.c:2:27: fatal error: sys/int_types.h: Aucun fichier ou dossier de ce type
+ #include <sys/int_types.h>
+                           ^
+compilation terminated.
+CMakeFiles/cmTC_07d6c.dir/build.make:65 : la recette pour la cible « CMakeFiles/cmTC_07d6c.dir/CheckIncludeFiles.c.o » a échouée
+make[1]: *** [CMakeFiles/cmTC_07d6c.dir/CheckIncludeFiles.c.o] Erreur 1
+make[1] : on quitte le répertoire « /home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/ZZIPlib-master/CMakeFiles/CMakeTmp »
+Makefile:126 : la recette pour la cible « cmTC_07d6c/fast » a échouée
+make: *** [cmTC_07d6c/fast] Erreur 2
+
+Source:
+/* */
+#include <sys/int_types.h>
+
+
+int main(void){return 0;}
+
+Determining if files sys/ndir.h exist failed with the following output:
+Change Dir: /home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/ZZIPlib-master/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_b607f/fast"
+/usr/bin/make -f CMakeFiles/cmTC_b607f.dir/build.make CMakeFiles/cmTC_b607f.dir/build
+make[1] : on entre dans le répertoire « /home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/ZZIPlib-master/CMakeFiles/CMakeTmp »
+Building C object CMakeFiles/cmTC_b607f.dir/CheckIncludeFiles.c.o
+/usr/bin/cc     -o CMakeFiles/cmTC_b607f.dir/CheckIncludeFiles.c.o   -c /home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/ZZIPlib-master/CMakeFiles/CMakeTmp/CheckIncludeFiles.c
+/home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/ZZIPlib-master/CMakeFiles/CMakeTmp/CheckIncludeFiles.c:2:22: fatal error: sys/ndir.h: Aucun fichier ou dossier de ce type
+ #include <sys/ndir.h>
+                      ^
+compilation terminated.
+CMakeFiles/cmTC_b607f.dir/build.make:65 : la recette pour la cible « CMakeFiles/cmTC_b607f.dir/CheckIncludeFiles.c.o » a échouée
+make[1]: *** [CMakeFiles/cmTC_b607f.dir/CheckIncludeFiles.c.o] Erreur 1
+make[1] : on quitte le répertoire « /home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/ZZIPlib-master/CMakeFiles/CMakeTmp »
+Makefile:126 : la recette pour la cible « cmTC_b607f/fast » a échouée
+make: *** [cmTC_b607f/fast] Erreur 2
+
+Source:
+/* */
+#include <sys/ndir.h>
+
+
+int main(void){return 0;}
+
+Determining if files winbase.h exist failed with the following output:
+Change Dir: /home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/ZZIPlib-master/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_7d7e4/fast"
+/usr/bin/make -f CMakeFiles/cmTC_7d7e4.dir/build.make CMakeFiles/cmTC_7d7e4.dir/build
+make[1] : on entre dans le répertoire « /home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/ZZIPlib-master/CMakeFiles/CMakeTmp »
+Building C object CMakeFiles/cmTC_7d7e4.dir/CheckIncludeFiles.c.o
+/usr/bin/cc     -o CMakeFiles/cmTC_7d7e4.dir/CheckIncludeFiles.c.o   -c /home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/ZZIPlib-master/CMakeFiles/CMakeTmp/CheckIncludeFiles.c
+/home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/ZZIPlib-master/CMakeFiles/CMakeTmp/CheckIncludeFiles.c:2:21: fatal error: winbase.h: Aucun fichier ou dossier de ce type
+ #include <winbase.h>
+                     ^
+compilation terminated.
+CMakeFiles/cmTC_7d7e4.dir/build.make:65 : la recette pour la cible « CMakeFiles/cmTC_7d7e4.dir/CheckIncludeFiles.c.o » a échouée
+make[1]: *** [CMakeFiles/cmTC_7d7e4.dir/CheckIncludeFiles.c.o] Erreur 1
+make[1] : on quitte le répertoire « /home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/ZZIPlib-master/CMakeFiles/CMakeTmp »
+Makefile:126 : la recette pour la cible « cmTC_7d7e4/fast » a échouée
+make: *** [cmTC_7d7e4/fast] Erreur 2
+
+Source:
+/* */
+#include <winbase.h>
+
+
+int main(void){return 0;}
+
+Determining if files windows.h exist failed with the following output:
+Change Dir: /home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/ZZIPlib-master/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_9b8ee/fast"
+/usr/bin/make -f CMakeFiles/cmTC_9b8ee.dir/build.make CMakeFiles/cmTC_9b8ee.dir/build
+make[1] : on entre dans le répertoire « /home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/ZZIPlib-master/CMakeFiles/CMakeTmp »
+Building C object CMakeFiles/cmTC_9b8ee.dir/CheckIncludeFiles.c.o
+/usr/bin/cc     -o CMakeFiles/cmTC_9b8ee.dir/CheckIncludeFiles.c.o   -c /home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/ZZIPlib-master/CMakeFiles/CMakeTmp/CheckIncludeFiles.c
+/home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/ZZIPlib-master/CMakeFiles/CMakeTmp/CheckIncludeFiles.c:2:21: fatal error: windows.h: Aucun fichier ou dossier de ce type
+ #include <windows.h>
+                     ^
+compilation terminated.
+CMakeFiles/cmTC_9b8ee.dir/build.make:65 : la recette pour la cible « CMakeFiles/cmTC_9b8ee.dir/CheckIncludeFiles.c.o » a échouée
+make[1]: *** [CMakeFiles/cmTC_9b8ee.dir/CheckIncludeFiles.c.o] Erreur 1
+make[1] : on quitte le répertoire « /home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/ZZIPlib-master/CMakeFiles/CMakeTmp »
+Makefile:126 : la recette pour la cible « cmTC_9b8ee/fast » a échouée
+make: *** [cmTC_9b8ee/fast] Erreur 2
+
+Source:
+/* */
+#include <windows.h>
+
+
+int main(void){return 0;}
+
+Determining if files winnt.h exist failed with the following output:
+Change Dir: /home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/ZZIPlib-master/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_73d18/fast"
+/usr/bin/make -f CMakeFiles/cmTC_73d18.dir/build.make CMakeFiles/cmTC_73d18.dir/build
+make[1] : on entre dans le répertoire « /home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/ZZIPlib-master/CMakeFiles/CMakeTmp »
+Building C object CMakeFiles/cmTC_73d18.dir/CheckIncludeFiles.c.o
+/usr/bin/cc     -o CMakeFiles/cmTC_73d18.dir/CheckIncludeFiles.c.o   -c /home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/ZZIPlib-master/CMakeFiles/CMakeTmp/CheckIncludeFiles.c
+/home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/ZZIPlib-master/CMakeFiles/CMakeTmp/CheckIncludeFiles.c:2:19: fatal error: winnt.h: Aucun fichier ou dossier de ce type
+ #include <winnt.h>
+                   ^
+compilation terminated.
+CMakeFiles/cmTC_73d18.dir/build.make:65 : la recette pour la cible « CMakeFiles/cmTC_73d18.dir/CheckIncludeFiles.c.o » a échouée
+make[1]: *** [CMakeFiles/cmTC_73d18.dir/CheckIncludeFiles.c.o] Erreur 1
+make[1] : on quitte le répertoire « /home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/ZZIPlib-master/CMakeFiles/CMakeTmp »
+Makefile:126 : la recette pour la cible « cmTC_73d18/fast » a échouée
+make: *** [cmTC_73d18/fast] Erreur 2
+
+Source:
+/* */
+#include <winnt.h>
+
+
+int main(void){return 0;}
+

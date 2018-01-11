@@ -1,0 +1,1 @@
+/usr/bin/cc  -fPIC -O3 -DNDEBUG  -shared -Wl,-soname,libzzipfseeko.so -o libzzipfseeko.so CMakeFiles/zzipfseeko.dir/zzip/fseeko.c.o CMakeFiles/zzipfseeko.dir/zzip/fetch.c.o -lz 
