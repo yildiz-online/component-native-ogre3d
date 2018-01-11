@@ -1,1 +1,0 @@
-/usr/bin/cc  -fPIC -O3 -DNDEBUG  -shared -Wl,-soname,libzzipmmapped.so -o libzzipmmapped.so CMakeFiles/zzipmmapped.dir/zzip/mmapped.c.o CMakeFiles/zzipmmapped.dir/zzip/memdisk.c.o CMakeFiles/zzipmmapped.dir/zzip/fetch.c.o -lz 

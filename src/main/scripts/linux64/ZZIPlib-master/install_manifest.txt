@@ -1,8 +1,0 @@
-/home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/Dependencies/include/zzip/zzip.h
-/home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/Dependencies/include/zzip/types.h
-/home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/Dependencies/include/zzip/conf.h
-/home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/Dependencies/include/zzip/_msvc.h
-/home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/Dependencies/include/zzip/plugin.h
-/home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/Dependencies/include/zzip/fetch.h
-/home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/Dependencies/include/zzip/_config.h
-/home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/Dependencies/lib/libzzip.so
