@@ -32,7 +32,7 @@ THE SOFTWARE.
 
 #if OGRE_PLATFORM == OGRE_PLATFORM_WIN32 || OGRE_PLATFORM == OGRE_PLATFORM_WINRT
 #   define LC_NUMERIC_MASK LC_NUMERIC
-#   define newlocale(cat, loc, base) _create_locale(cat, loc)
+#   define newlocale(cat, loc, base) 0
 #endif
 
 #if OGRE_PLATFORM == OGRE_PLATFORM_ANDROID || OGRE_PLATFORM == OGRE_PLATFORM_EMSCRIPTEN
