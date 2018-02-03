@@ -1,3 +1,5 @@
+mkdir -p ../../../../target/classes/linux64
+
 cmake ../../c++ \
 -DCMAKE_BUILD_TYPE=Release \
 -DOGRE_BUILD_RENDERSYSTEM_D3D9=FALSE \
@@ -21,8 +23,8 @@ cmake ../../c++ \
 -DOGRE_INSTALL_DOCS=FALSE \
 -DOGRE_INSTALL_SAMPLES_SOURCE=FALSE \
 -DOGRE_INSTALL_PDB=FALSE \
--DOGRE_UNITY_BUILD=TRUE
--DZLIB_LIBRARY="/home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/zlib/linux64/lib/libz.so" \
+-DOGRE_UNITY_BUILD=TRUE \
+-DZLIB_LIBRARY="zlib/linux64/lib/libz.so" \
 -DZLIB_INCLUDE_DIR="zlib/linux64/include" \
 -DFREETYPE_INCLUDE_DIR="freetype/linux64/include" \
 -DFREETYPE_LIBRARY="freetype/linux64/lib/libfreetype.a" \
@@ -49,9 +51,29 @@ rm -R inst
 rm -R lib
 rm -R OgreHLMS
 rm -R OgreMain
+rm -R OgreMeshLodGenerator
+rm -R OgreOverlay
+rm -R OgrePaging
+rm -R OgreRTShaderSystem
+rm -R Plugin_BSPSceneManager
+rm -R pkgconfig
+rm -R zlib
+rm -R Plugin_OctreeSceneManager
+rm -R Plugin_ParticleFX
+rm -R PlugIns
+rm -R RenderSystems
+rm -R Samples
+rm -R ZZIPlib-master
+rm Makefile
+rm CPackConfig.cmake
 rm CMakeCache.txt
 rm cmake_install.cmake
-rm CPackConfi.cmake
+rm CPackSourceConfig.cmake
+rm freetype-2.6.5.tar.gz
+rm install_manifest.txt
+rm LICENSE.txt
+rm version.txt
+rm ZZIPlib-master.tar.gz
 
 return $r1
 

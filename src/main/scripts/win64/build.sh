@@ -1,3 +1,5 @@
+mkdir -p ../../../../target/classes/win64
+
 cmake ../../c++ \
 -DCMAKE_BUILD_TYPE=Release \
 -DOGRE_BUILD_RENDERSYSTEM_D3D9=FALSE \
@@ -21,12 +23,12 @@ cmake ../../c++ \
 -DOGRE_INSTALL_DOCS=FALSE \
 -DOGRE_INSTALL_SAMPLES_SOURCE=FALSE \
 -DOGRE_INSTALL_PDB=FALSE \
--DOGRE_UNITY_BUILD=TRUE
--DZLIB_LIBRARY="win64/zlib/win64/lib/libz.a" \
--DZLIB_INCLUDE_DIR="win64/zlib/win64/include" \
--DFREETYPE_INCLUDE_DIR="win64/freetype/win64/include" \
--DFREETYPE_FT2BUILD_INCLUDE_DIR="win64/freetype/win64/include" \
--DFREETYPE_LIBRARY="win64/freetype/win64/lib/freetype.a" \
+-DOGRE_UNITY_BUILD=TRUE \
+-DZLIB_LIBRARY="$PWD/zlib/win64/lib/libz.a" \
+-DZLIB_INCLUDE_DIR="zlib/win64/include" \
+-DFREETYPE_INCLUDE_DIR="freetype/win64/include/freetype2" \
+-DFREETYPE_FT2BUILD_INCLUDE_DIR="freetype/win64/include/freetype2" \
+-DFREETYPE_LIBRARY="$PWD/freetype/win64/lib/libfreetype.a" \
 -DCMAKE_INSTALL_PREFIX="../../../../target/classes/win64" \
 -DCMAKE_TOOLCHAIN_FILE=mingw-toolchain.cmake
 
@@ -41,15 +43,24 @@ rm -R Components
 rm -R Dependencies
 rm -R Docs
 rm -R freeimage
-rm -R freetype
 rm -R freetype-2.6.5
 rm -R include
 rm -R inst
 rm -R lib
 rm -R OgreHLMS
 rm -R OgreMain
-rm CMakeCache.txt
-rm cmake_install.cmake
-rm CPackConfi.cmake
+rm -R OgreMeshLodGenerator
+rm -R OgreOverlay
+rm -R OgrePaging
+rm -R OgreRTShaderSystem
+rm -R Plugin_BSPSceneManager
+rm -R zlib
+rm -R Plugin_OctreeSceneManager
+rm -R Plugin_ParticleFX
+rm -R PlugIns
+rm -R RenderSystems
+rm -R Samples
+rm Makefile
+rm CPackConfig.cmake
 
 return $r1
