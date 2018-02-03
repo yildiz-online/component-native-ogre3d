@@ -21,10 +21,10 @@ cmake ../../c++ \
 -DOGRE_INSTALL_DOCS=FALSE \
 -DOGRE_INSTALL_SAMPLES_SOURCE=FALSE \
 -DOGRE_INSTALL_PDB=FALSE \
--DZLIB_LIBRARY="linux64/zlib/linux64/lib/zlib.a" \
--DZLIB_INCLUDE_DIR="linux64/zlib/linux64/include" \
--DFREETYPE_INCLUDE_DIR="linux64/freetype/linux64/include" \
--DFREETYPE_LIBRARY="linux64/freetype/linux64/lib/libfreetype.a" \
+-DZLIB_LIBRARY="/home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/zlib/linux64/lib/libz.so" \
+-DZLIB_INCLUDE_DIR="zlib/linux64/include" \
+-DFREETYPE_INCLUDE_DIR="freetype/linux64/include" \
+-DFREETYPE_LIBRARY="freetype/linux64/lib/libfreetype.a" \
 -DCMAKE_INSTALL_PREFIX="../../../../target/classes/linux64" \
 -G "Unix Makefiles"
 
@@ -32,7 +32,6 @@ make install
 r1=$?
 
 make clean
-rm -R ../Dependencies
 
 return $r1
 
