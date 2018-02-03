@@ -21,10 +21,13 @@ cmake ../../c++ \
 -DOGRE_INSTALL_DOCS=FALSE \
 -DOGRE_INSTALL_SAMPLES_SOURCE=FALSE \
 -DOGRE_INSTALL_PDB=FALSE \
+-DOGRE_UNITY_BUILD=TRUE
 -DZLIB_LIBRARY="/home/moussa/dev/projects/component-native-ogre3d/src/main/scripts/linux64/zlib/linux64/lib/libz.so" \
 -DZLIB_INCLUDE_DIR="zlib/linux64/include" \
 -DFREETYPE_INCLUDE_DIR="freetype/linux64/include" \
 -DFREETYPE_LIBRARY="freetype/linux64/lib/libfreetype.a" \
+-DFREEIMAGE_INCLUDE_DIR="freeimage/linux64/include" \
+-DFREEIMAGE_LIBRARY="freeimage/linux64/lib/libfreeimage.a" \
 -DCMAKE_INSTALL_PREFIX="../../../../target/classes/linux64" \
 -G "Unix Makefiles"
 
@@ -32,6 +35,23 @@ make install
 r1=$?
 
 make clean
+rm -R bin
+rm -R cmake
+rm -R CMakeFiles
+rm -R Components
+rm -R Dependencies
+rm -R Docs
+rm -R freeimage
+rm -R freetype
+rm -R freetype-2.6.5
+rm -R include
+rm -R inst
+rm -R lib
+rm -R OgreHLMS
+rm -R OgreMain
+rm CMakeCache.txt
+rm cmake_install.cmake
+rm CPackConfi.cmake
 
 return $r1
 

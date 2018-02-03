@@ -21,7 +21,8 @@ cmake ../../c++ \
 -DOGRE_INSTALL_DOCS=FALSE \
 -DOGRE_INSTALL_SAMPLES_SOURCE=FALSE \
 -DOGRE_INSTALL_PDB=FALSE \
--DZLIB_LIBRARY="win64/zlib/win64/lib/zlib.a" \
+-DOGRE_UNITY_BUILD=TRUE
+-DZLIB_LIBRARY="win64/zlib/win64/lib/libz.a" \
 -DZLIB_INCLUDE_DIR="win64/zlib/win64/include" \
 -DFREETYPE_INCLUDE_DIR="win64/freetype/win64/include" \
 -DFREETYPE_FT2BUILD_INCLUDE_DIR="win64/freetype/win64/include" \
@@ -33,5 +34,22 @@ make install
 r1=$?
 
 make clean
+rm -R bin
+rm -R cmake
+rm -R CMakeFiles
+rm -R Components
+rm -R Dependencies
+rm -R Docs
+rm -R freeimage
+rm -R freetype
+rm -R freetype-2.6.5
+rm -R include
+rm -R inst
+rm -R lib
+rm -R OgreHLMS
+rm -R OgreMain
+rm CMakeCache.txt
+rm cmake_install.cmake
+rm CPackConfi.cmake
 
 return $r1
