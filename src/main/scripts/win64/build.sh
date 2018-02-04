@@ -24,11 +24,13 @@ cmake ../../c++ \
 -DOGRE_INSTALL_SAMPLES_SOURCE=FALSE \
 -DOGRE_INSTALL_PDB=FALSE \
 -DOGRE_UNITY_BUILD=TRUE \
--DZLIB_LIBRARY="$PWD/zlib/win64/lib/libz.a" \
+-DZLIB_LIBRARY="$PWD/zlib/win64/lib/libzlibstatic.a" \
 -DZLIB_INCLUDE_DIR="zlib/win64/include" \
 -DFREETYPE_INCLUDE_DIR="freetype/win64/include/freetype2" \
 -DFREETYPE_FT2BUILD_INCLUDE_DIR="freetype/win64/include/freetype2" \
 -DFREETYPE_LIBRARY="$PWD/freetype/win64/lib/libfreetype.a" \
+-DFREEIMAGE_INCLUDE_DIR="freeimage/win64/include" \
+-DFREEIMAGE_LIBRARY="$PWD/freeimage/win64/lib/freeimage.lib" \
 -DCMAKE_INSTALL_PREFIX="../../../../target/classes/win64" \
 -DCMAKE_TOOLCHAIN_FILE=mingw-toolchain.cmake
 
@@ -43,6 +45,10 @@ rm -R Components
 rm -R Dependencies
 rm -R Docs
 rm -R freeimage
+rm -R freetype
+rm -R OgreGLSupport
+rm -R RenderSystem_GL
+rm -R RenderSystem_GL3Plus
 rm -R freetype-2.6.5
 rm -R include
 rm -R inst
@@ -60,7 +66,16 @@ rm -R Plugin_ParticleFX
 rm -R PlugIns
 rm -R RenderSystems
 rm -R Samples
+rm -R ZZIPlib-master
 rm Makefile
+rm CPackSourceConfig.cmake
 rm CPackConfig.cmake
+rm CMakeCache.txt
+rm cmake_install.cmake
+rm freetype-2.6.5.tar.gz
+rm install_manifest.txt
+rm LICENSE.txt
+rm version.txt
+rm ZZIPlib-master.tar.gz
 
 return $r1
