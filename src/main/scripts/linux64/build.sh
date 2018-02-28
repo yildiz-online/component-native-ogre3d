@@ -24,12 +24,13 @@ cmake ../../c++ \
 -DOGRE_INSTALL_SAMPLES_SOURCE=FALSE \
 -DOGRE_INSTALL_PDB=FALSE \
 -DOGRE_UNITY_BUILD=TRUE \
+-DOGRE_BUILD_DEPENDENCIES=FALSE \
+-DFreeImage_INCLUDE_DIRS="$PWD/freeimage/linux64/include" \
+-DFreeImage_LIBRARIES="$PWD/freeimage/linux64/lib/libFreeImage.a" \
 -DZLIB_LIBRARY="zlib/linux64/lib/libz.so" \
 -DZLIB_INCLUDE_DIR="zlib/linux64/include" \
 -DFREETYPE_INCLUDE_DIR="freetype/linux64/include" \
--DFREETYPE_LIBRARY="freetype/linux64/lib/libfreetype.a" \
--DFREEIMAGE_INCLUDE_DIR="freeimage/linux64/include" \
--DFREEIMAGE_LIBRARY="freeimage/linux64/lib/libfreeimage.a" \
+-DFREETYPE_LIBRARY="freetype/linux64/lib/libfreetype.so" \
 -DCMAKE_INSTALL_PREFIX="../../../../target/classes/linux64" \
 -G "Unix Makefiles"
 
@@ -41,11 +42,7 @@ rm -R bin
 rm -R cmake
 rm -R CMakeFiles
 rm -R Components
-rm -R Dependencies
 rm -R Docs
-rm -R freeimage
-rm -R freetype
-rm -R freetype-2.6.5
 rm -R include
 rm -R inst
 rm -R lib
@@ -57,23 +54,18 @@ rm -R OgrePaging
 rm -R OgreRTShaderSystem
 rm -R Plugin_BSPSceneManager
 rm -R pkgconfig
-rm -R zlib
 rm -R Plugin_OctreeSceneManager
 rm -R Plugin_ParticleFX
 rm -R PlugIns
 rm -R RenderSystems
 rm -R Samples
-rm -R ZZIPlib-master
 rm Makefile
 rm CPackConfig.cmake
 rm CMakeCache.txt
 rm cmake_install.cmake
 rm CPackSourceConfig.cmake
-rm freetype-2.6.5.tar.gz
-rm install_manifest.txt
 rm LICENSE.txt
 rm version.txt
-rm ZZIPlib-master.tar.gz
 
 return $r1
 
