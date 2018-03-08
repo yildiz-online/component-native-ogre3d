@@ -57,7 +57,7 @@
         <artifactId>maven-dependency-plugin</artifactId>
         <executions>
           <execution>
-            <id>unpack-zlib-linux64</id>
+            <id>unpack-ogredeps-linux64</id>
             <phase>process-resources</phase>
             <goals>
               <goal>unpack</goal>
@@ -66,15 +66,15 @@
               <artifactItems>
                 <artifactItem>
                   <groupId>be.yildiz-games</groupId>
-                  <artifactId>component-native-zlib</artifactId>
-                  <outputDirectory>src/main/scripts/linux64/zlib/</outputDirectory>
+                  <artifactId>component-native-ogredeps</artifactId>
+                  <outputDirectory>src/main/scripts/linux64/ogredeps/</outputDirectory>
                   <includes>linux64/**/*.*</includes>
                 </artifactItem>
               </artifactItems>
             </configuration>
           </execution>
           <execution>
-            <id>unpack-zlib-win64</id>
+            <id>unpack-ogredeps-win64</id>
             <phase>process-resources</phase>
             <goals>
               <goal>unpack</goal>
@@ -83,76 +83,8 @@
               <artifactItems>
                 <artifactItem>
                   <groupId>be.yildiz-games</groupId>
-                  <artifactId>component-native-zlib</artifactId>
-                  <outputDirectory>src/main/scripts/win64/zlib/</outputDirectory>
-                  <includes>win64/**/*.*</includes>
-                </artifactItem>
-              </artifactItems>
-            </configuration>
-          </execution>
-          <execution>
-            <id>unpack-freetype-linux64</id>
-            <phase>process-resources</phase>
-            <goals>
-              <goal>unpack</goal>
-            </goals>
-            <configuration>
-              <artifactItems>
-                <artifactItem>
-                  <groupId>be.yildiz-games</groupId>
-                  <artifactId>component-native-freetype</artifactId>
-                  <outputDirectory>src/main/scripts/linux64/freetype/</outputDirectory>
-                  <includes>linux64/**/*.*</includes>
-                </artifactItem>
-              </artifactItems>
-            </configuration>
-          </execution>
-          <execution>
-            <id>unpack-freetype-win64</id>
-            <phase>process-resources</phase>
-            <goals>
-              <goal>unpack</goal>
-            </goals>
-            <configuration>
-              <artifactItems>
-                <artifactItem>
-                  <groupId>be.yildiz-games</groupId>
-                  <artifactId>component-native-freetype</artifactId>
-                  <outputDirectory>src/main/scripts/win64/freetype/</outputDirectory>
-                  <includes>win64/**/*.*</includes>
-                </artifactItem>
-              </artifactItems>
-            </configuration>
-          </execution>
-          <execution>
-            <id>unpack-freeimage-linux64</id>
-            <phase>process-resources</phase>
-            <goals>
-              <goal>unpack</goal>
-            </goals>
-            <configuration>
-              <artifactItems>
-                <artifactItem>
-                  <groupId>be.yildiz-games</groupId>
-                  <artifactId>component-native-freeimage</artifactId>
-                  <outputDirectory>src/main/scripts/linux64/freeimage/</outputDirectory>
-                  <includes>linux64/**/*.*</includes>
-                </artifactItem>
-              </artifactItems>
-            </configuration>
-          </execution>
-          <execution>
-            <id>unpack-freeimage-win64</id>
-            <phase>process-resources</phase>
-            <goals>
-              <goal>unpack</goal>
-            </goals>
-            <configuration>
-              <artifactItems>
-                <artifactItem>
-                  <groupId>be.yildiz-games</groupId>
-                  <artifactId>component-native-freeimage</artifactId>
-                  <outputDirectory>src/main/scripts/win64/freeimage/</outputDirectory>
+                  <artifactId>component-native-ogredeps</artifactId>
+                  <outputDirectory>src/main/scripts/win64/ogredeps/</outputDirectory>
                   <includes>win64/**/*.*</includes>
                 </artifactItem>
               </artifactItems>
@@ -166,18 +98,8 @@
   <dependencies>
     <dependency>
       <groupId>be.yildiz-games</groupId>
-      <artifactId>component-native-zlib</artifactId>
-      <version>1.2.11-SNAPSHOT</version>
-    </dependency>
-    <dependency>
-      <groupId>be.yildiz-games</groupId>
-      <artifactId>component-native-freetype</artifactId>
-      <version>2.8.0-SNAPSHOT</version>
-    </dependency>
-    <dependency>
-      <groupId>be.yildiz-games</groupId>
-      <artifactId>component-native-freeimage</artifactId>
-      <version>3.17.0-SNAPSHOT</version>
+      <artifactId>component-native-ogredeps</artifactId>
+      <version>1.0_d0f0609a769a-SNAPSHOT</version>
     </dependency>
   </dependencies>
 

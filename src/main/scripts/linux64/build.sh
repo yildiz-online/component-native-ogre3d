@@ -25,12 +25,11 @@ cmake ../../c++ \
 -DOGRE_INSTALL_PDB=FALSE \
 -DOGRE_UNITY_BUILD=TRUE \
 -DOGRE_BUILD_DEPENDENCIES=FALSE \
--DFreeImage_INCLUDE_DIRS="$PWD/freeimage/linux64/include" \
--DFreeImage_LIBRARIES="$PWD/freeimage/linux64/lib/libFreeImage.a" \
--DZLIB_LIBRARY="zlib/linux64/lib/libz.so" \
--DZLIB_INCLUDE_DIR="zlib/linux64/include" \
--DFREETYPE_INCLUDE_DIR="freetype/linux64/include" \
--DFREETYPE_LIBRARY="freetype/linux64/lib/libfreetype.so" \
+-Dfreeimage_INCLUDE_DIR="$PWD/ogredeps/linux64/include" \
+-Dfreeimage_LIBRARY="$PWD/ogredeps/linux64/lib/libFreeImage.a" \
+-DZLIB_LIBRARY="$PWD/ogredeps/linux64/lib/libzlib.a" \
+-DZLIB_INCLUDE_DIR="$PWD/ogredeps/linux64/include" \
+-DFREETYPE_LIBRARY="$PWD/ogredeps/linux64/lib/libfreetype.a" \
 -DCMAKE_INSTALL_PREFIX="../../../../target/classes/linux64" \
 -G "Unix Makefiles"
 
@@ -38,6 +37,11 @@ make install
 r1=$?
 
 make clean
+rm -R Dependencies
+rm -R ogredeps
+rm -R OgreGLSupport
+rm -R RenderSystem_GL
+rm -R RenderSystem_RL3Plus
 rm -R bin
 rm -R cmake
 rm -R CMakeFiles
@@ -60,6 +64,7 @@ rm -R PlugIns
 rm -R RenderSystems
 rm -R Samples
 rm Makefile
+rm install_manifest.txt
 rm CPackConfig.cmake
 rm CMakeCache.txt
 rm cmake_install.cmake

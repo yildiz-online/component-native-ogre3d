@@ -24,13 +24,12 @@ cmake ../../c++ \
 -DOGRE_INSTALL_SAMPLES_SOURCE=FALSE \
 -DOGRE_INSTALL_PDB=FALSE \
 -DOGRE_UNITY_BUILD=TRUE \
--DZLIB_LIBRARY="$PWD/zlib/win64/lib/libzlibstatic.a" \
--DZLIB_INCLUDE_DIR="zlib/win64/include" \
--DFREETYPE_INCLUDE_DIR="freetype/win64/include/freetype2" \
--DFREETYPE_FT2BUILD_INCLUDE_DIR="freetype/win64/include/freetype2" \
--DFREETYPE_LIBRARY="$PWD/freetype/win64/lib/libfreetype.a" \
--DFREEIMAGE_INCLUDE_DIR="freeimage/win64/include" \
--DFREEIMAGE_LIBRARY="$PWD/freeimage/win64/lib/freeimage.lib" \
+-DZLIB_LIBRARY="$PWD/ogredeps/win64/lib/Release/libzlib.a" \
+-DZLIB_INCLUDE_DIR="$PWD/ogredeps/win64/include" \
+-DFREETYPE_INCLUDE_DIRS="$PWD/ogredeps/win64/include" \
+-DFREETYPE_LIBRARY="$PWD/ogredeps/win64/lib/Release/libfreetype.a" \
+-DFreeImage_INCLUDE_DIR="$PWD/ogredeps/win64/include" \
+-DFreeImage_LIBRARY="$PWD/ogredeps/win64/lib/Release/libFreeImage.a" \
 -DCMAKE_INSTALL_PREFIX="../../../../target/classes/win64" \
 -DCMAKE_TOOLCHAIN_FILE=mingw-toolchain.cmake
 
@@ -42,10 +41,8 @@ rm -R bin
 rm -R cmake
 rm -R CMakeFiles
 rm -R Components
-rm -R Dependencies
+rm -R ogredeps
 rm -R Docs
-rm -R freeimage
-rm -R freetype
 rm -R OgreGLSupport
 rm -R RenderSystem_GL
 rm -R RenderSystem_GL3Plus
@@ -60,13 +57,11 @@ rm -R OgreOverlay
 rm -R OgrePaging
 rm -R OgreRTShaderSystem
 rm -R Plugin_BSPSceneManager
-rm -R zlib
 rm -R Plugin_OctreeSceneManager
 rm -R Plugin_ParticleFX
 rm -R PlugIns
 rm -R RenderSystems
 rm -R Samples
-rm -R ZZIPlib-master
 rm Makefile
 rm CPackSourceConfig.cmake
 rm CPackConfig.cmake
