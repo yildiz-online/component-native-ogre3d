@@ -30,7 +30,7 @@
   <url>https://bitbucket.org/yildiz-engine-team/component-native-ogre3d</url>
 
   <artifactId>component-native-ogre3d</artifactId>
-  <version>1.10.11.1-SNAPSHOT</version>
+  <version>1.10.11.1</version>
 
   <packaging>jar</packaging>
   <inceptionYear>2017</inceptionYear>
@@ -99,7 +99,7 @@
     <dependency>
       <groupId>be.yildiz-games</groupId>
       <artifactId>component-native-ogredeps</artifactId>
-      <version>1.0_d0f0609a769a</version>
+      <version>1.0.1</version>
     </dependency>
   </dependencies>
 
