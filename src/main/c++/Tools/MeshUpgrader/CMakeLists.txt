@@ -13,8 +13,7 @@ set(SOURCE_FILES
   src/main.cpp
 )
 
-ogre_add_executable(OgreMeshUpgrader ${SOURCE_FILES})
-ogre_add_component_include_dir(MeshLodGenerator)
+add_executable(OgreMeshUpgrader ${SOURCE_FILES})
 target_link_libraries(OgreMeshUpgrader ${OGRE_LIBRARIES} ${OGRE_MeshLodGenerator_LIBRARIES})
 if (APPLE)
     set_target_properties(OgreMeshUpgrader PROPERTIES

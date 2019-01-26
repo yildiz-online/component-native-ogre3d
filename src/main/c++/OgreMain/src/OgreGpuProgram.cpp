@@ -28,11 +28,7 @@ THE SOFTWARE.
 #include "OgreStableHeaders.h"
 #include "OgreGpuProgram.h"
 #include "OgreGpuProgramManager.h"
-#include "OgreRoot.h"
-#include "OgreRenderSystem.h"
 #include "OgreRenderSystemCapabilities.h"
-#include "OgreStringConverter.h"
-#include "OgreLogManager.h"
 
 namespace Ogre
 {
@@ -47,6 +43,8 @@ namespace Ogre
     GpuProgram::CmdAdjacency GpuProgram::msAdjacencyCmd;
     GpuProgram::CmdComputeGroupDims GpuProgram::msComputeGroupDimsCmd;
     
+
+    GpuLogicalBufferStructPtr GpuProgram::mBoolLogicalToPhysical;
 
     //-----------------------------------------------------------------------------
     GpuProgram::GpuProgram(ResourceManager* creator, const String& name, ResourceHandle handle,
@@ -85,6 +83,14 @@ namespace Ogre
         mLoadFromFile = false;
         mCompileError = false;
     }
+
+    uint32 GpuProgram::_getHash(uint32 seed) const
+    {
+        // include filename as same source can be used with different defines & entry points
+        uint32 hash = FastHash(mName.c_str(), mName.size(), seed);
+        return FastHash(mSource.c_str(), mSource.size(), hash);
+    }
+
     size_t GpuProgram::calculateSize(void) const
     {
         size_t memSize = 0;
@@ -238,7 +244,7 @@ namespace Ogre
             const String& name = i->first;
             const GpuConstantDefinition& def = i->second;
             // only consider non-array entries
-            if (name.find("[") == String::npos)
+            if (name.find('[') == String::npos)
             {
                 GpuLogicalIndexUseMap::value_type val(def.logicalIndex, 
                     GpuLogicalIndexUse(def.physicalIndex, def.arraySize * def.elementSize, def.variability));
@@ -291,9 +297,8 @@ namespace Ogre
             ret->_setNamedConstants(mConstantDefs);
         }
         // link shared logical / physical map for low-level use
-        ret->_setLogicalIndexes(mFloatLogicalToPhysical, mDoubleLogicalToPhysical, 
-                                        mIntLogicalToPhysical, mUIntLogicalToPhysical,
-                                        mBoolLogicalToPhysical);
+        ret->_setLogicalIndexes(mFloatLogicalToPhysical, mDoubleLogicalToPhysical,
+                                mIntLogicalToPhysical);
 
         // Copy in default parameters if present
         if (mDefaultParams)
@@ -513,8 +518,10 @@ namespace Ogre
     }
     void GpuProgram::CmdAdjacency::doSet(void* target, const String& val)
     {
+        LogManager::getSingleton().logWarning("'uses_adjacency_information' is deprecated. "
+        "Set the respective RenderOperation::OpertionType instead.");
         GpuProgram* t = static_cast<GpuProgram*>(target);
-        t->setAdjacencyInfoRequired(StringConverter::parseBool(val));
+        t->mNeedsAdjacencyInfo = StringConverter::parseBool(val);
     }
     //-----------------------------------------------------------------------
     String GpuProgram::CmdComputeGroupDims::doGet(const void* target) const

@@ -79,10 +79,6 @@ enum FFPShaderStage
 
 // Fixed Function Library: Common functions
 #define FFP_LIB_COMMON                              "FFPLib_Common"
-/// @deprecated use ShaderFunction::addAssignmentAtom
-#define FFP_FUNC_ASSIGN                             "FFP_Assign"
-/// @deprecated use ShaderFunction::addAssignmentAtom with ParameterFactory::createConstParam
-#define FFP_FUNC_CONSTRUCT                          "FFP_Construct"
 #define FFP_FUNC_MODULATE                           "FFP_Modulate"
 #define FFP_FUNC_ADD                                "FFP_Add"
 #define FFP_FUNC_SUBTRACT                           "FFP_Subtract"
@@ -95,6 +91,7 @@ enum FFPShaderStage
 #define FFP_FUNC_TRANSFORM                          "FFP_Transform"
 
 // Fixed Function Library: Lighting functions
+/// @deprecated use SGX_LIB_PERPIXELLIGHTING
 #define FFP_LIB_LIGHTING                            "FFPLib_Lighting"
 #define FFP_FUNC_LIGHT_DIRECTIONAL_DIFFUSE          "FFP_Light_Directional_Diffuse"
 #define FFP_FUNC_LIGHT_DIRECTIONAL_DIFFUSESPECULAR  "FFP_Light_Directional_DiffuseSpecular"
@@ -110,8 +107,9 @@ enum FFPShaderStage
 #define FFP_FUNC_GENERATE_TEXCOORD_ENV_SPHERE       "FFP_GenerateTexCoord_EnvMap_Sphere"
 #define FFP_FUNC_GENERATE_TEXCOORD_ENV_REFLECT      "FFP_GenerateTexCoord_EnvMap_Reflect"
 #define FFP_FUNC_GENERATE_TEXCOORD_PROJECTION       "FFP_GenerateTexCoord_Projection"
+
+/// @deprecated use SampleTextureAtom
 #define FFP_FUNC_SAMPLE_TEXTURE                     "FFP_SampleTexture"
-#define FFP_FUNC_CONSTRUCT_SAMPLER_WRAPPER          "FFP_Construct_Sampler_Wrapper" //only for hlsl
 
 #define FFP_FUNC_SAMPLE_TEXTURE_PROJ                "FFP_SampleTextureProj"
 #define FFP_FUNC_MODULATEX2                         "FFP_ModulateX2"

@@ -44,7 +44,6 @@ namespace Ogre  {
             {GL_LUMINANCE, GL_UNSIGNED_BYTE, GL_LUMINANCE8},     // PF_L8
             {GL_LUMINANCE, GL_UNSIGNED_SHORT, GL_LUMINANCE16},   // PF_L16
             {GL_ALPHA, GL_UNSIGNED_BYTE, GL_ALPHA8},             // PF_A8
-            {GL_NONE},                                           // PF_A4L4
             {GL_LUMINANCE_ALPHA, GL_UNSIGNED_BYTE, GL_LUMINANCE8_ALPHA8},// PF_BYTE_LA
             {GL_RGB, GL_UNSIGNED_SHORT_5_6_5, GL_RGB5},          // PF_R5G6B5
             {GL_BGR, GL_UNSIGNED_SHORT_5_6_5, GL_RGB5},          // PF_B5G6R5
@@ -74,7 +73,7 @@ namespace Ogre  {
             {GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV, GL_RGBA8},    // PF_X8R8G8B8
             {GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV, GL_RGBA8},    // PF_X8B8G8R8
             {GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, GL_RGBA8},        // PF_R8G8B8A8
-            {GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, GL_DEPTH_COMPONENT16}, // PF_DEPTH
+            {GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, GL_DEPTH_COMPONENT16}, // PF_DEPTH16
             {GL_RGBA, GL_UNSIGNED_SHORT, GL_RGBA16},             // PF_SHORT_RGBA
             {GL_RGB, GL_UNSIGNED_BYTE_3_3_2, GL_R3_G3_B2},       // PF_R3G3B2
             {GL_LUMINANCE, GL_HALF_FLOAT, GL_LUMINANCE16F_ARB},  // PF_FLOAT16_R
@@ -130,7 +129,7 @@ namespace Ogre  {
         case GL_DEPTH_COMPONENT32:
         case GL_DEPTH_COMPONENT32F:
         case GL_DEPTH_COMPONENT:
-            return PF_DEPTH;
+            return PF_DEPTH16;
         case GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT:
             return PF_DXT1;
         case GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT3_EXT:

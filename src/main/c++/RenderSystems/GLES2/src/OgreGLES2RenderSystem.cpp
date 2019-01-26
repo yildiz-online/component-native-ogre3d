@@ -62,7 +62,7 @@ Ogre::GLES2ManagedResourceManager* Ogre::GLES2RenderSystem::mResourceManager = N
 #endif
 
 // Convenience macro from ARB_vertex_buffer_object spec
-#define VBO_BUFFER_OFFSET(i) ((char *)NULL + (i))
+#define VBO_BUFFER_OFFSET(i) ((char *)(i))
 
 #ifndef GL_PACK_ROW_LENGTH_NV
 #define GL_PACK_ROW_LENGTH_NV             0x0D02
@@ -106,16 +106,61 @@ static void gl2ext_to_gl3core() {
 namespace Ogre {
 
 #if OGRE_PLATFORM != OGRE_PLATFORM_APPLE_IOS && OGRE_PLATFORM != OGRE_PLATFORM_ANDROID
-    static GLES2Support* glsupport;
+    static GLNativeSupport* glsupport;
     static GLESWglProc get_proc(const char* proc) {
         return (GLESWglProc)glsupport->getProcAddress(proc);
     }
 #endif
 
+    static GLint getCombinedMinMipFilter(FilterOptions min, FilterOptions mip)
+    {
+        switch(min)
+        {
+        case FO_ANISOTROPIC:
+        case FO_LINEAR:
+            switch (mip)
+            {
+            case FO_ANISOTROPIC:
+            case FO_LINEAR:
+                // linear min, linear mip
+                return GL_LINEAR_MIPMAP_LINEAR;
+            case FO_POINT:
+                // linear min, point mip
+                return GL_LINEAR_MIPMAP_NEAREST;
+            case FO_NONE:
+                // linear min, no mip
+                return GL_LINEAR;
+            }
+            break;
+        case FO_POINT:
+        case FO_NONE:
+            switch (mip)
+            {
+            case FO_ANISOTROPIC:
+            case FO_LINEAR:
+                // nearest min, linear mip
+                return GL_NEAREST_MIPMAP_LINEAR;
+            case FO_POINT:
+                // nearest min, point mip
+                return GL_NEAREST_MIPMAP_NEAREST;
+            case FO_NONE:
+                // nearest min, no mip
+                return GL_NEAREST;
+            }
+            break;
+        }
+
+        // should never get here
+        return 0;
+    }
+
     GLES2RenderSystem::GLES2RenderSystem()
         : mStateCacheManager(0),
           mGpuProgramManager(0),
           mGLSLESProgramFactory(0),
+#if !OGRE_NO_GLES2_CG_SUPPORT
+          mGLSLESCgProgramFactory(0),
+#endif
           mHardwareBufferManager(0),
           mRTTManager(0),
           mCurTexMipCount(0)
@@ -127,19 +172,17 @@ namespace Ogre {
         mRenderAttribsBound.reserve(100);
         mRenderInstanceAttribsBound.reserve(100);
 
-        mEnableFixedPipeline = false;
-
 #if OGRE_PLATFORM == OGRE_PLATFORM_ANDROID || OGRE_PLATFORM == OGRE_PLATFORM_EMSCRIPTEN
         mResourceManager = OGRE_NEW GLES2ManagedResourceManager();
 #endif
         
-        mGLSupport = new GLES2Support(getGLSupport(GLNativeSupport::CONTEXT_ES));
+        mGLSupport = getGLSupport(GLNativeSupport::CONTEXT_ES);
         
 #if OGRE_PLATFORM != OGRE_PLATFORM_APPLE_IOS && OGRE_PLATFORM != OGRE_PLATFORM_ANDROID && OGRE_PLATFORM != OGRE_PLATFORM_WIN32
         glsupport = mGLSupport;
 #endif
 
-        mGLSupport->addConfig();
+        initConfigOptions();
 
         for (i = 0; i < OGRE_MAX_TEXTURE_LAYERS; i++)
         {
@@ -162,14 +205,6 @@ namespace Ogre {
     {
         shutdown();
 
-        // Destroy render windows
-        RenderTargetMap::iterator i;
-        for (i = mRenderTargets.begin(); i != mRenderTargets.end(); ++i)
-        {
-            OGRE_DELETE i->second;
-        }
-
-        mRenderTargets.clear();
         OGRE_DELETE mGLSupport;
         mGLSupport = 0;
 
@@ -188,32 +223,6 @@ namespace Ogre {
         return strName;
     }
 
-    ConfigOptionMap& GLES2RenderSystem::getConfigOptions(void)
-    {
-        return mGLSupport->getConfigOptions();
-    }
-
-    void GLES2RenderSystem::setConfigOption(const String &name, const String &value)
-    {
-        mGLSupport->setConfigOption(name, value);
-    }
-
-    String GLES2RenderSystem::validateConfigOptions(void)
-    {
-        // XXX Return an error string if something is invalid
-        return mGLSupport->validateConfig();
-    }
-
-    bool GLES2RenderSystem::hasMinGLVersion(int major, int minor) const
-    {
-        return mGLSupport->hasMinGLVersion(major, minor);
-    }
-
-    bool GLES2RenderSystem::checkExtension(const String& ext) const
-    {
-        return mGLSupport->checkExtension(ext);
-    }
-
     RenderWindow* GLES2RenderSystem::_initialise(bool autoCreateWindow,
                                                  const String& windowTitle)
     {
@@ -226,7 +235,7 @@ namespace Ogre {
         if(autoCreateWindow) {
             uint w, h;
             bool fullscreen;
-            NameValuePairList misc = mGLSupport->parseOptions(w, h, fullscreen);
+            NameValuePairList misc = parseOptions(w, h, fullscreen);
             autoWindow = _createRenderWindow(windowTitle, w, h, fullscreen, &misc);
         }
         RenderSystem::_initialise(autoCreateWindow, windowTitle);
@@ -247,7 +256,7 @@ namespace Ogre {
         }
 
         rsc->setRenderSystemName(getName());
-        rsc->parseVendorFromString(mGLSupport->getGLVendor());
+        rsc->parseVendorFromString(mVendor);
 
         // Multitexturing support and set number of texture units
         GLint units;
@@ -277,7 +286,6 @@ namespace Ogre {
         rsc->setCapability(RSC_SCISSOR_TEST);
 
         // Vertex Buffer Objects are always supported by OpenGL ES
-        rsc->setCapability(RSC_VBO);
         if(hasMinGLVersion(3, 0) || checkExtension("GL_OES_element_index_uint"))
             rsc->setCapability(RSC_32BIT_INDEX);
 
@@ -340,7 +348,6 @@ namespace Ogre {
             rsc->setCapability(RSC_ANISOTROPY);
         }
 
-        rsc->setCapability(RSC_FBO);
         rsc->setCapability(RSC_HWRENDER_TO_TEXTURE);
         if (hasMinGLVersion(3, 0))
         {
@@ -366,11 +373,7 @@ namespace Ogre {
         // GL always shares vertex and fragment texture units (for now?)
         rsc->setVertexTextureUnitsShared(true);
 
-        // Hardware support mipmapping
-        rsc->setCapability(RSC_AUTOMIPMAP);
-
         // Blending support
-        rsc->setCapability(RSC_BLENDING);
         rsc->setCapability(RSC_ADVANCED_BLEND_OPERATIONS);
 
         // DOT3 support is standard
@@ -411,7 +414,6 @@ namespace Ogre {
         rsc->setCapability(RSC_FRAGMENT_PROGRAM);
 
         // Separate shader objects
-#if OGRE_PLATFORM != OGRE_PLATFORM_NACL
         OGRE_IF_IOS_VERSION_IS_GREATER_THAN(5.0)
         if(checkExtension("GL_EXT_separate_shader_objects"))
         {
@@ -423,7 +425,6 @@ namespace Ogre {
         if(rsc->getDeviceName().find("Mesa") != String::npos) {
             rsc->unsetCapability(RSC_GLSL_SSO_REDECLARE);
         }
-#endif
 
         GLfloat floatConstantCount = 0;
 #if OGRE_NO_GLES3_SUPPORT == 0
@@ -449,8 +450,6 @@ namespace Ogre {
         // Check for Float textures
         if(hasMinGLVersion(3, 0) || checkExtension("GL_OES_texture_float") || checkExtension("GL_OES_texture_half_float"))
             rsc->setCapability(RSC_TEXTURE_FLOAT);
-
-        rsc->setCapability(RSC_TEXTURE_1D);
 
         if(hasMinGLVersion(3, 0) || checkExtension("GL_OES_texture_3D"))
             rsc->setCapability(RSC_TEXTURE_3D);
@@ -515,7 +514,15 @@ namespace Ogre {
         {
             // Check if render to vertex buffer (transform feedback in OpenGL)
             rsc->setCapability(RSC_HWRENDER_TO_VERTEX_BUFFER);
+
+            rsc->setCapability(RSC_PRIMITIVE_RESTART);
         }
+
+        GLfloat lineWidth[2] = {1, 1};
+        glGetFloatv(GL_ALIASED_LINE_WIDTH_RANGE, lineWidth);
+        if(lineWidth[1] != 1 && lineWidth[1] != lineWidth[0])
+            rsc->setCapability(RSC_WIDE_LINES);
+
         return rsc;
     }
 
@@ -547,7 +554,6 @@ namespace Ogre {
         // Create FBO manager
         LogManager::getSingleton().logMessage("GL ES 2: Using FBOs for rendering to textures");
         mRTTManager = new GLES2FBOManager();
-        caps->setCapability(RSC_RTT_SEPARATE_DEPTHBUFFER);
 
         Log* defaultLog = LogManager::getSingleton().getDefaultLog();
         if (defaultLog)
@@ -653,7 +659,6 @@ namespace Ogre {
         if (!mGLInitialised)
         {
             initialiseContext(win);
-            mDriverVersion = mGLSupport->getGLVersion();
 
             // Get the shader language version
             const char* shadingLangVersion = (const char*)glGetString(GL_SHADING_LANGUAGE_VERSION);
@@ -693,8 +698,7 @@ namespace Ogre {
         {
             // Unlike D3D9, OGL doesn't allow sharing the main depth buffer, so keep them separate.
             // Only Copy does, but Copy means only one depth buffer...
-            GLContext *windowContext = 0;
-            win->getCustomAttribute( "GLCONTEXT", &windowContext );
+            GLContext *windowContext = dynamic_cast<GLRenderTarget*>(win)->getContext();
             GLES2DepthBuffer *depthBuffer = OGRE_NEW GLES2DepthBuffer( DepthBuffer::POOL_DEFAULT, this,
                                                             windowContext, 0, 0,
                                                             win->getWidth(), win->getHeight(),
@@ -716,10 +720,7 @@ namespace Ogre {
         // Only FBO & pbuffer support different depth buffers, so everything
         // else creates dummy (empty) containers
         // retVal = mRTTManager->_createDepthBufferFor( renderTarget );
-        GLES2FrameBufferObject *fbo = 0;
-        renderTarget->getCustomAttribute("FBO", &fbo);
-
-        if( fbo )
+        if( auto fbo = dynamic_cast<GLRenderTarget*>(renderTarget)->getFBO() )
         {
             // Presence of an FBO means the manager is an FBO Manager, that's why it's safe to downcast
             // Find best depth & stencil format suited for the RT's format
@@ -775,8 +776,7 @@ namespace Ogre {
 
     void GLES2RenderSystem::_destroyDepthBuffer(RenderTarget* pWin)
     {
-        GLContext *windowContext = 0;
-        pWin->getCustomAttribute("GLCONTEXT", &windowContext);
+        GLContext *windowContext = dynamic_cast<GLRenderTarget*>(pWin)->getContext();
         
         // 1 Window <-> 1 Context, should be always true
         assert( windowContext );
@@ -821,8 +821,7 @@ namespace Ogre {
 
         if (enabled)
         {
-            GLES2TexturePtr tex = static_pointer_cast<GLES2Texture>(
-                texPtr ? texPtr : mTextureManager->_getWarningTexture());
+            GLES2TexturePtr tex = static_pointer_cast<GLES2Texture>(texPtr);
 
             mCurTexMipCount = 0;
 
@@ -833,20 +832,61 @@ namespace Ogre {
 
             mStateCacheManager->bindGLTexture(mTextureTypes[stage], tex->getGLID());
         }
-        else
+    }
+
+    void GLES2RenderSystem::_setSampler(size_t unit, Sampler& sampler)
+    {
+        if (!mStateCacheManager->activateGLTextureUnit(unit))
+            return;
+
+        GLenum target = mTextureTypes[unit];
+
+        const Sampler::UVWAddressingMode& uvw = sampler.getAddressingMode();
+        mStateCacheManager->setTexParameteri(target, GL_TEXTURE_WRAP_S, getTextureAddressingMode(uvw.u));
+        mStateCacheManager->setTexParameteri(target, GL_TEXTURE_WRAP_T, getTextureAddressingMode(uvw.v));
+        if(getCapabilities()->hasCapability(RSC_TEXTURE_3D))
+            mStateCacheManager->setTexParameteri(target, GL_TEXTURE_WRAP_R, getTextureAddressingMode(uvw.w));
+
+        if ((uvw.u == TAM_BORDER || uvw.v == TAM_BORDER || uvw.w == TAM_BORDER) && checkExtension("GL_EXT_texture_border_clamp"))
+            OGRE_CHECK_GL_ERROR(glTexParameterfv( target, GL_TEXTURE_BORDER_COLOR_EXT, sampler.getBorderColour().ptr()));
+
+        // only via shader..
+        // OGRE_CHECK_GL_ERROR(glTexParameterf(target, GL_TEXTURE_LOD_BIAS, sampler.getTextureMipmapBias()));
+
+        if (mCurrentCapabilities->hasCapability(RSC_ANISOTROPY))
+            mStateCacheManager->setTexParameteri(
+                target, GL_TEXTURE_MAX_ANISOTROPY_EXT,
+                std::min<uint>(getCapabilities()->getMaxSupportedAnisotropy(), sampler.getAnisotropy()));
+
+        if(hasMinGLVersion(3, 0))
         {
-            // Bind zero texture
-            mStateCacheManager->bindGLTexture(GL_TEXTURE_2D, 0);
+            mStateCacheManager->setTexParameteri(target, GL_TEXTURE_COMPARE_MODE,
+                                                 sampler.getCompareEnabled() ? GL_COMPARE_REF_TO_TEXTURE
+                                                                                    : GL_NONE);
+            if(sampler.getCompareEnabled())
+                mStateCacheManager->setTexParameteri(target, GL_TEXTURE_COMPARE_FUNC,
+                                                 convertCompareFunction(sampler.getCompareFunction()));
         }
 
-        mStateCacheManager->activateGLTextureUnit(0);
+        // Combine with existing mip filter
+        mStateCacheManager->setTexParameteri(
+            target, GL_TEXTURE_MIN_FILTER,
+            getCombinedMinMipFilter(sampler.getFiltering(FT_MIN), sampler.getFiltering(FT_MIP)));
+
+        switch (sampler.getFiltering(FT_MAG))
+        {
+        case FO_ANISOTROPIC: // GL treats linear and aniso the same
+        case FO_LINEAR:
+            mStateCacheManager->setTexParameteri(target, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            break;
+        case FO_POINT:
+        case FO_NONE:
+            mStateCacheManager->setTexParameteri(target, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+            break;
+        }
     }
 
-    void GLES2RenderSystem::_setTextureCoordSet(size_t stage, size_t index)
-    {
-    }
-
-    GLint GLES2RenderSystem::getTextureAddressingMode(TextureUnitState::TextureAddressingMode tam) const
+    GLint GLES2RenderSystem::getTextureAddressingMode(TextureAddressingMode tam) const
     {
         switch (tam)
         {
@@ -861,7 +901,7 @@ namespace Ogre {
         }
     }
 
-    void GLES2RenderSystem::_setTextureAddressingMode(size_t stage, const TextureUnitState::UVWAddressingMode& uvw)
+    void GLES2RenderSystem::_setTextureAddressingMode(size_t stage, const Sampler::UVWAddressingMode& uvw)
     {
         if (!mStateCacheManager->activateGLTextureUnit(stage))
             return;
@@ -871,7 +911,11 @@ namespace Ogre {
 
         if(getCapabilities()->hasCapability(RSC_TEXTURE_3D))
             mStateCacheManager->setTexParameteri(mTextureTypes[stage], GL_TEXTURE_WRAP_R_OES, getTextureAddressingMode(uvw.w));
-        mStateCacheManager->activateGLTextureUnit(0);
+    }
+
+    void GLES2RenderSystem::_setLineWidth(float width)
+    {
+        OGRE_CHECK_GL_ERROR(glLineWidth(width));
     }
 
     GLenum GLES2RenderSystem::getBlendMode(SceneBlendFactor ogreBlend) const
@@ -904,45 +948,6 @@ namespace Ogre {
         return GL_ONE;
     }
 
-    void GLES2RenderSystem::_setSceneBlending(SceneBlendFactor sourceFactor, SceneBlendFactor destFactor, SceneBlendOperation op)
-    {
-        GLenum sourceBlend = getBlendMode(sourceFactor);
-        GLenum destBlend = getBlendMode(destFactor);
-        if(sourceFactor == SBF_ONE && destFactor == SBF_ZERO)
-        {
-            mStateCacheManager->setDisabled(GL_BLEND);
-        }
-        else
-        {
-            mStateCacheManager->setEnabled(GL_BLEND);
-            mStateCacheManager->setBlendFunc(sourceBlend, destBlend);
-        }
-        
-        GLint func = GL_FUNC_ADD;
-        switch(op)
-        {
-        case SBO_ADD:
-            func = GL_FUNC_ADD;
-            break;
-        case SBO_SUBTRACT:
-            func = GL_FUNC_SUBTRACT;
-            break;
-        case SBO_REVERSE_SUBTRACT:
-            func = GL_FUNC_REVERSE_SUBTRACT;
-            break;
-        case SBO_MIN:
-            if(hasMinGLVersion(3, 0) || checkExtension("GL_EXT_blend_minmax"))
-                func = GL_MIN_EXT;
-            break;
-        case SBO_MAX:
-            if(hasMinGLVersion(3, 0) || checkExtension("GL_EXT_blend_minmax"))
-                func = GL_MAX_EXT;
-            break;
-        }
-
-        mStateCacheManager->setBlendEquation(func);
-    }
-
     void GLES2RenderSystem::_setSeparateSceneBlending(
         SceneBlendFactor sourceFactor, SceneBlendFactor destFactor,
         SceneBlendFactor sourceFactorAlpha, SceneBlendFactor destFactorAlpha,
@@ -961,7 +966,7 @@ namespace Ogre {
         else
         {
             mStateCacheManager->setEnabled(GL_BLEND);
-            OGRE_CHECK_GL_ERROR(glBlendFuncSeparate(sourceBlend, destBlend, sourceBlendAlpha, destBlendAlpha));
+            mStateCacheManager->setBlendFunc(sourceBlend, destBlend, sourceBlendAlpha, destBlendAlpha);
         }
         
         GLint func = GL_FUNC_ADD, alphaFunc = GL_FUNC_ADD;
@@ -1304,48 +1309,6 @@ namespace Ogre {
         }
     }
 
-    GLint GLES2RenderSystem::getCombinedMinMipFilter(void) const
-    {
-        switch(mMinFilter)
-        {
-            case FO_ANISOTROPIC:
-            case FO_LINEAR:
-                switch (mMipFilter)
-                {
-                    case FO_ANISOTROPIC:
-                    case FO_LINEAR:
-                        // linear min, linear mip
-                        return GL_LINEAR_MIPMAP_LINEAR;
-                    case FO_POINT:
-                        // linear min, point mip
-                        return GL_LINEAR_MIPMAP_NEAREST;
-                    case FO_NONE:
-                        // linear min, no mip
-                        return GL_LINEAR;
-                }
-                break;
-            case FO_POINT:
-            case FO_NONE:
-                switch (mMipFilter)
-                {
-                    case FO_ANISOTROPIC:
-                    case FO_LINEAR:
-                        // nearest min, linear mip
-                        return GL_NEAREST_MIPMAP_LINEAR;
-                    case FO_POINT:
-                        // nearest min, point mip
-                        return GL_NEAREST_MIPMAP_NEAREST;
-                    case FO_NONE:
-                        // nearest min, no mip
-                        return GL_NEAREST;
-                }
-                break;
-        }
-
-        // should never get here
-        return 0;
-    }
-
     void GLES2RenderSystem::_setTextureUnitFiltering(size_t unit, FilterOptions minFilter,
                 FilterOptions magFilter, FilterOptions mipFilter)
     {       
@@ -1370,7 +1333,7 @@ namespace Ogre {
                 // Combine with existing mip filter
                 mStateCacheManager->setTexParameteri(mTextureTypes[unit],
                                 GL_TEXTURE_MIN_FILTER,
-                                getCombinedMinMipFilter());
+                                getCombinedMinMipFilter(mMinFilter, mMipFilter));
                 break;
             case FT_MAG:
                 switch (fo)
@@ -1395,12 +1358,10 @@ namespace Ogre {
                 // Combine with existing min filter
                 mStateCacheManager->setTexParameteri(mTextureTypes[unit],
                                                      GL_TEXTURE_MIN_FILTER,
-                                                     getCombinedMinMipFilter());
+                                                     getCombinedMinMipFilter(mMinFilter, mMipFilter));
                 
                 break;
         }
-
-        mStateCacheManager->activateGLTextureUnit(0);
     }
 
     void GLES2RenderSystem::_setTextureLayerAnisotropy(size_t unit, unsigned int maxAnisotropy)
@@ -1417,8 +1378,6 @@ namespace Ogre {
 
         mStateCacheManager->setTexParameterf(mTextureTypes[unit],
                                               GL_TEXTURE_MAX_ANISOTROPY_EXT, (float)maxAnisotropy);
-
-        mStateCacheManager->activateGLTextureUnit(0);
     }
 
     void GLES2RenderSystem::_render(const RenderOperation& op)
@@ -1436,7 +1395,7 @@ namespace Ogre {
             globalVertexDeclaration = getGlobalInstanceVertexBufferVertexDeclaration();
             hasInstanceData = (op.useGlobalInstancingVertexBufferIsAvailable &&
                                 globalInstanceVertexBuffer && (globalVertexDeclaration != NULL))
-                                || op.vertexData->vertexBufferBinding->getHasInstanceData();
+                                || op.vertexData->vertexBufferBinding->hasInstanceData();
 
             numberOfInstances = op.numberOfInstances;
 
@@ -1559,22 +1518,21 @@ namespace Ogre {
         }
 
         if(getCapabilities()->hasCapability(RSC_VAO))
-            // Unbind the vertex array object.  Marks the end of what state will be included.
-            mStateCacheManager->bindGLVertexArray(0);
-
-        // Unbind all attributes
-        for (vector<GLuint>::type::iterator ai = mRenderAttribsBound.begin(); ai != mRenderAttribsBound.end(); ++ai)
         {
-            mStateCacheManager->setVertexAttribDisabled(*ai);
-//          OGRE_CHECK_GL_ERROR(glDisableVertexAttribArray(*ai));
+            // Do not unbind the vertex array object if VAOs are supported
+            // VAOs > 0 are selected each time before usage
+            // VAO #0 WOULD BE explicitly selected by Ogre before usage
         }
-
-        // Unbind any instance attributes
-        for (vector<GLuint>::type::iterator ai = mRenderInstanceAttribsBound.begin(); ai != mRenderInstanceAttribsBound.end(); ++ai)
+        else // VAOs are not supported, we should clear scratch 'VAO #0'
         {
-            glVertexAttribDivisorEXT(*ai, 0);
-        }
+            // Unbind all attributes
+            for(std::vector<GLuint>::iterator ai = mRenderAttribsBound.begin(); ai != mRenderAttribsBound.end(); ++ai)
+                OGRE_CHECK_GL_ERROR(glDisableVertexAttribArray(*ai));
 
+            // Unbind any instance attributes
+            for (std::vector<GLuint>::iterator ai = mRenderInstanceAttribsBound.begin(); ai != mRenderInstanceAttribsBound.end(); ++ai)
+                OGRE_CHECK_GL_ERROR(glVertexAttribDivisorEXT(*ai, 0));
+        }
         mRenderAttribsBound.clear();
         mRenderInstanceAttribsBound.clear();
     }
@@ -1767,12 +1725,9 @@ namespace Ogre {
         
         for(RenderTargetMap::iterator it = mRenderTargets.begin(); it!=mRenderTargets.end(); ++it)
         {
-            RenderTarget* target = it->second;
-            if(target)
+            if(auto target = dynamic_cast<GLRenderTarget*>(it->second))
             {
-                GLES2FrameBufferObject *fbo = 0;
-                target->getCustomAttribute("FBO", &fbo);
-                if(fbo)
+                if(auto fbo = target->getFBO())
                     fbo->notifyContextDestroyed(context);
             }
         }
@@ -1831,8 +1786,12 @@ namespace Ogre {
     {
         mStateCacheManager->setDisabled(GL_DITHER);
 
-#if OGRE_NO_GLES3_SUPPORT == 0
+        if(!getCapabilities()->hasCapability(RSC_PRIMITIVE_RESTART))
+            return;
+
         // Enable primitive restarting with fixed indices depending upon the data type
+        // https://www.khronos.org/registry/webgl/specs/latest/2.0/#NO_PRIMITIVE_RESTART_FIXED_INDEX
+#if OGRE_PLATFORM != OGRE_PLATFORM_EMSCRIPTEN
         OGRE_CHECK_GL_ERROR(glEnable(GL_PRIMITIVE_RESTART_FIXED_INDEX));
 #endif
     }
@@ -1840,8 +1799,7 @@ namespace Ogre {
     void GLES2RenderSystem::initialiseContext(RenderWindow* primary)
     {
         // Set main and current context
-        mMainContext = 0;
-        primary->getCustomAttribute("GLCONTEXT", &mMainContext);
+        mMainContext = dynamic_cast<GLRenderTarget*>(primary)->getContext();
         mCurrentContext = mMainContext;
 
         // Set primary context as active
@@ -1862,7 +1820,7 @@ namespace Ogre {
         }
 
         // Setup GLSupport
-        mGLSupport->initialiseExtensions();
+        initialiseExtensions();
 
         mStateCacheManager = mCurrentContext->createOrRetrieveStateCacheManager<GLES2StateCacheManager>();
 
@@ -1886,8 +1844,7 @@ namespace Ogre {
         if (target && mRTTManager)
         {
             // Switch context if different from current one
-            GLContext *newContext = 0;
-            target->getCustomAttribute("GLCONTEXT", &newContext);
+            GLContext *newContext = dynamic_cast<GLRenderTarget*>(target)->getContext();
             if (newContext && mCurrentContext != newContext)
             {
                 _switchContext(newContext);
@@ -2034,7 +1991,7 @@ namespace Ogre {
         RenderSystem::unbindGpuProgram(gptype);
     }
 
-    void GLES2RenderSystem::bindGpuProgramParameters(GpuProgramType gptype, GpuProgramParametersSharedPtr params, uint16 mask)
+    void GLES2RenderSystem::bindGpuProgramParameters(GpuProgramType gptype, const GpuProgramParametersPtr& params, uint16 mask)
     {
         // Just copy
         params->_copySharedParams();
@@ -2199,12 +2156,22 @@ namespace Ogre {
 
     void GLES2RenderSystem::_setTextureUnitCompareFunction(size_t unit, CompareFunction function)
     {
-        //no effect in GLES2 rendersystem
+        if (!mStateCacheManager->activateGLTextureUnit(unit) || !hasMinGLVersion(3, 0))
+            return;
+
+        mStateCacheManager->setTexParameteri(mTextureTypes[unit],
+                                            GL_TEXTURE_COMPARE_FUNC,
+                                            convertCompareFunction(function));
     }
 
     void GLES2RenderSystem::_setTextureUnitCompareEnabled(size_t unit, bool compare)
     {
-        //no effect in GLES2 rendersystem
+        if (!mStateCacheManager->activateGLTextureUnit(unit) || !hasMinGLVersion(3, 0))
+            return;
+
+        mStateCacheManager->setTexParameteri(mTextureTypes[unit],
+                                            GL_TEXTURE_COMPARE_MODE,
+                                            compare ? GL_COMPARE_REF_TO_TEXTURE : GL_NONE);
     }
 
     void GLES2RenderSystem::bindVertexElementToGpu(
@@ -2229,7 +2196,7 @@ namespace Ogre {
         {
             if (mCurrentVertexProgram)
             {
-                if (hwGlBuffer->getIsInstanceData())
+                if (hwGlBuffer->isInstanceData())
                 {
                     OGRE_CHECK_GL_ERROR(glVertexAttribDivisorEXT(attrib, static_cast<GLuint>(hwGlBuffer->getInstanceDataStepRate())));
                     mRenderInstanceAttribsBound.push_back(attrib);
@@ -2266,7 +2233,7 @@ namespace Ogre {
                                                   static_cast<GLsizei>(vertexBuffer->getVertexSize()),
                                                   pBufferData));
 
-        mStateCacheManager->setVertexAttribEnabled(attrib);
+        OGRE_CHECK_GL_ERROR(glEnableVertexAttribArray(attrib));
         mRenderAttribsBound.push_back(attrib);
     }
 
@@ -2275,7 +2242,7 @@ namespace Ogre {
         GLenum format = GLES2PixelUtil::getGLOriginFormat(dst.format);
         GLenum type = GLES2PixelUtil::getGLOriginDataType(dst.format);
 
-        if ((format == 0) || (type == 0))
+        if (dst.format != PF_BYTE_RGBA)
         {
             OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS,
                 "Unsupported format.",
@@ -2313,4 +2280,61 @@ namespace Ogre {
         PixelUtil::bulkPixelVerticalFlip(dst);
     }
 
+    void GLES2RenderSystem::initialiseExtensions(void)
+    {
+        String tmpStr;
+#if 1
+        // Set version string
+        const GLubyte* pcVer = glGetString(GL_VERSION);
+        assert(pcVer && "Problems getting GL version string using glGetString");
+        tmpStr = (const char*)pcVer;
+
+        // format explained here:
+        // https://www.khronos.org/opengles/sdk/docs/man/xhtml/glGetString.xml
+        size_t offset = sizeof("OpenGL ES ") - 1;
+        if(tmpStr.length() > offset) {
+            mDriverVersion.fromString(tmpStr.substr(offset, tmpStr.find(' ', offset)));
+        }
+#else
+        // GLES3 way, but should work with ES2 as well, so disabled for now
+        glGetIntegerv(GL_MAJOR_VERSION, &mVersion.major);
+        glGetIntegerv(GL_MINOR_VERSION, &mVersion.minor);
+#endif
+
+        LogManager::getSingleton().logMessage("GL_VERSION = " + mDriverVersion.toString());
+
+
+        // Get vendor
+        const GLubyte* pcVendor = glGetString(GL_VENDOR);
+        tmpStr = (const char*)pcVendor;
+        LogManager::getSingleton().logMessage("GL_VENDOR = " + tmpStr);
+        mVendor = tmpStr.substr(0, tmpStr.find(' '));
+
+        // Get renderer
+        const GLubyte* pcRenderer = glGetString(GL_RENDERER);
+        tmpStr = (const char*)pcRenderer;
+        LogManager::getSingleton().logMessage("GL_RENDERER = " + tmpStr);
+
+        // Set extension list
+        StringStream ext;
+        String str;
+
+        const GLubyte* pcExt = glGetString(GL_EXTENSIONS);
+        OgreAssert(pcExt, "Problems getting GL extension string using glGetString");
+        ext << pcExt;
+
+        Log::Stream log = LogManager::getSingleton().stream();
+        log << "GL_EXTENSIONS = ";
+        while (ext >> str)
+        {
+#if OGRE_PLATFORM == OGRE_PLATFORM_EMSCRIPTEN
+            // emscripten gives us both prefixed (GL_) and unprefixed (EXT_) forms
+            // use prefixed form (GL_EXT) unless its a WebGL extension (WEBGL_)
+            if ((str.substr(0, 3) != "GL_" && str.substr(0, 6) != "WEBGL_") || str.substr(0, 9) == "GL_WEBGL_")
+                continue;
+#endif
+            log << str << " ";
+            mExtensionList.insert(str);
+        }
     }
+}

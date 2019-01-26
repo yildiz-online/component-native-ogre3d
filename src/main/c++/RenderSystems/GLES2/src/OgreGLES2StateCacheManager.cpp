@@ -26,10 +26,8 @@
  -----------------------------------------------------------------------------
  */
 
-#include "OgreStableHeaders.h"
 #include "OgreGLES2StateCacheManager.h"
 #include "OgreGLES2RenderSystem.h"
-#include "OgreLogManager.h"
 #include "OgreRoot.h"
 
 namespace Ogre {
@@ -88,6 +86,8 @@ namespace Ogre {
         // stored values match the GL state
         mBlendFuncSource = GL_ONE;
         mBlendFuncDest = GL_ZERO;
+        mBlendFuncSourceAlpha = GL_ONE;
+        mBlendFuncDestAlpha = GL_ZERO;
         
         mClearColour[0] = mClearColour[1] = mClearColour[2] = mClearColour[3] = 0.0f;
         mColourMask[0] = mColourMask[1] = mColourMask[2] = mColourMask[3] = GL_TRUE;
@@ -293,10 +293,12 @@ namespace Ogre {
         OGRE_CHECK_GL_ERROR(glBindTexture(target, texture));
     }
     
-    bool GLES2StateCacheManager::activateGLTextureUnit(uchar unit)
+    bool GLES2StateCacheManager::activateGLTextureUnit(size_t unit)
     {
+#ifdef OGRE_ENABLE_STATE_CACHE
         if (mActiveTextureUnit == unit)
             return true;
+#endif
 
         if (unit >= Root::getSingleton().getRenderSystem()->getCapabilities()->getNumTextureUnits())
             return false;
@@ -306,30 +308,18 @@ namespace Ogre {
         return true;
     }
 
-    void GLES2StateCacheManager::setBlendFunc(GLenum source, GLenum dest)
+    void GLES2StateCacheManager::setBlendFunc(GLenum source, GLenum dest, GLenum sourceA, GLenum destA)
     {
-#if 0
-        // TODO glBlendFuncSeparate missing
-        if(mBlendFuncSource != source || mBlendFuncDest != dest)
+#ifdef OGRE_ENABLE_STATE_CACHE
+        if(mBlendFuncSource != source || mBlendFuncDest != dest || sourceA != mBlendFuncSourceAlpha || destA != mBlendFuncDestAlpha )
 #endif
         {
             mBlendFuncSource = source;
             mBlendFuncDest = dest;
+            mBlendFuncSourceAlpha = sourceA;
+            mBlendFuncDestAlpha = destA;
             
-            OGRE_CHECK_GL_ERROR(glBlendFunc(source, dest));
-        }
-    }
-    
-    void GLES2StateCacheManager::setBlendEquation(GLenum eq)
-    {
-#ifdef OGRE_ENABLE_STATE_CACHE
-        if(mBlendEquationRGB != eq || mBlendEquationAlpha != eq)
-#endif
-        {
-            mBlendEquationRGB = eq;
-            mBlendEquationAlpha = eq;
-
-            OGRE_CHECK_GL_ERROR(glBlendEquation(eq));
+            OGRE_CHECK_GL_ERROR(glBlendFuncSeparate(source, dest, sourceA, destA));
         }
     }
 
@@ -348,7 +338,9 @@ namespace Ogre {
     
     void GLES2StateCacheManager::setDepthMask(GLboolean mask)
     {
+#ifdef OGRE_ENABLE_STATE_CACHE
         if(mDepthMask != mask)
+#endif
         {
             mDepthMask = mask;
             
@@ -368,7 +360,9 @@ namespace Ogre {
     
     void GLES2StateCacheManager::setClearDepth(GLclampf depth)
     {
+#ifdef OGRE_ENABLE_STATE_CACHE
         if(mClearDepth != depth)
+#endif
         {
             mClearDepth = depth;
             
@@ -378,10 +372,12 @@ namespace Ogre {
     
     void GLES2StateCacheManager::setClearColour(GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha)
     {
+#ifdef OGRE_ENABLE_STATE_CACHE
         if((mClearColour[0] != red) ||
            (mClearColour[1] != green) ||
            (mClearColour[2] != blue) ||
            (mClearColour[3] != alpha))
+#endif
         {
             mClearColour[0] = red;
             mClearColour[1] = green;
@@ -394,10 +390,12 @@ namespace Ogre {
     
     void GLES2StateCacheManager::setColourMask(GLboolean red, GLboolean green, GLboolean blue, GLboolean alpha)
     {
+#ifdef OGRE_ENABLE_STATE_CACHE
         if((mColourMask[0] != red) ||
            (mColourMask[1] != green) ||
            (mColourMask[2] != blue) ||
            (mColourMask[3] != alpha))
+#endif
         {
             mColourMask[0] = red;
             mColourMask[1] = green;
@@ -410,7 +408,9 @@ namespace Ogre {
     
     void GLES2StateCacheManager::setStencilMask(GLuint mask)
     {
+#ifdef OGRE_ENABLE_STATE_CACHE
         if(mStencilMask != mask)
+#endif
         {
             mStencilMask = mask;
             
@@ -436,7 +436,7 @@ namespace Ogre {
     void GLES2StateCacheManager::setDisabled(GLenum flag)
     {
 #ifdef OGRE_ENABLE_STATE_CACHE
-        vector<GLenum>::iterator iter = std::find(mEnableVector.begin(), mEnableVector.end(), flag);
+        auto iter = std::find(mEnableVector.begin(), mEnableVector.end(), flag);
         if(iter != mEnableVector.end())
         {
             mEnableVector.erase(iter);
@@ -448,39 +448,11 @@ namespace Ogre {
 #endif
     }
 
-    void GLES2StateCacheManager::setVertexAttribEnabled(GLuint attrib)
-    {
-#ifdef OGRE_ENABLE_STATE_CACHE
-        bool found = std::find(mEnabledVertexAttribs.begin(), mEnabledVertexAttribs.end(), attrib) != mEnabledVertexAttribs.end();
-        if(!found)
-        {
-            mEnabledVertexAttribs.push_back(attrib);
-
-            OGRE_CHECK_GL_ERROR(glEnableVertexAttribArray(attrib));
-        }
-#else
-        OGRE_CHECK_GL_ERROR(glEnableVertexAttribArray(attrib));
-#endif
-    }
-
-    void GLES2StateCacheManager::setVertexAttribDisabled(GLuint attrib)
-    {
-#ifdef OGRE_ENABLE_STATE_CACHE
-        vector<GLuint>::iterator iter = std::find(mEnabledVertexAttribs.begin(), mEnabledVertexAttribs.end(), attrib);
-        if(iter != mEnabledVertexAttribs.end())
-        {
-            mEnabledVertexAttribs.erase(iter);
-
-            OGRE_CHECK_GL_ERROR(glDisableVertexAttribArray(attrib));
-        }
-#else
-        OGRE_CHECK_GL_ERROR(glDisableVertexAttribArray(attrib));
-#endif
-    }
-
     void GLES2StateCacheManager::setCullFace(GLenum face)
     {
+#ifdef OGRE_ENABLE_STATE_CACHE
         if(mCullFace != face)
+#endif
         {
             mCullFace = face;
             

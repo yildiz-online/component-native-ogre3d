@@ -158,21 +158,11 @@ namespace Ogre {
                         def.physicalIndex = defs.doubleBufferSize;
                         defs.doubleBufferSize += def.arraySize * def.elementSize;
                     }
-                    else if (def.isInt() || def.isSampler())
+                    else if (def.isInt() || def.isSampler() || def.isUnsignedInt() || def.isBool())
                     {
                         def.physicalIndex = defs.intBufferSize;
                         defs.intBufferSize += def.arraySize * def.elementSize;
                     }
-                    else if (def.isUnsignedInt() || def.isBool())
-                    {
-                        def.physicalIndex = defs.uintBufferSize;
-                        defs.uintBufferSize += def.arraySize * def.elementSize;
-                    }
-                    // else if (def.isBool())
-                    // {
-                    //     def.physicalIndex = defs.boolBufferSize;
-                    //     defs.boolBufferSize += def.arraySize * def.elementSize;
-                    // }
                     else
                     {
                         LogManager::getSingleton().logMessage("Could not parse type of GLSL Uniform: '"
@@ -252,7 +242,7 @@ namespace Ogre {
                     String externalName = parts.front();
 
                     // Now there should be an opening brace
-                    String::size_type openBracePos = src.find("{", currPos);
+                    String::size_type openBracePos = src.find('{', currPos);
                     if (openBracePos != String::npos)
                     {
                         currPos = openBracePos + 1;
@@ -265,11 +255,11 @@ namespace Ogre {
                     }
 
                     // First we need to find the internal name for the uniform block
-                    String::size_type endBracePos = src.find("}", currPos);
+                    String::size_type endBracePos = src.find('}', currPos);
 
                     // Find terminating semicolon
                     currPos = endBracePos + 1;
-                    endPos = src.find(";", currPos);
+                    endPos = src.find(';', currPos);
                     if (endPos == String::npos)
                     {
                         // problem, missing semicolon, abort
@@ -279,7 +269,7 @@ namespace Ogre {
                 else
                 {
                     // find terminating semicolon
-                    endPos = src.find(";", currPos);
+                    endPos = src.find(';', currPos);
                     if (endPos == String::npos)
                     {
                         // problem, missing semicolon, abort

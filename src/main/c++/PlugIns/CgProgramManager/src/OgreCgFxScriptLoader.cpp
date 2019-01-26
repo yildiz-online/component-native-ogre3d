@@ -25,7 +25,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 -----------------------------------------------------------------------------
 */
-#include "OgreStableHeaders.h"
 #include "OgreCgFxScriptLoader.h"
 #include "OgreResourceGroupManager.h"
 #include "OgreMaterialManager.h"
@@ -2338,10 +2337,10 @@ namespace Ogre {
     //---------------------------------------------------------------------
     void CgFxScriptLoader::CgWrapSamplerStateListener::upateTextureUnitState( TextureUnitState * ogreTextureUnitState, CGstateassignment cgStateAssignment )
     {
-        TextureUnitState::TextureAddressingMode ogreTextureAddressingMode = TextureUnitState::TAM_WRAP;
+        TextureAddressingMode ogreTextureAddressingMode = TextureUnitState::TAM_WRAP;
         ogreTextureAddressingMode = getOgreTextureAddressingMode(cgStateAssignment);
 
-        TextureUnitState::UVWAddressingMode ogreUVWAddressingMode = ogreTextureUnitState->getTextureAddressingMode();
+        Sampler::UVWAddressingMode ogreUVWAddressingMode = ogreTextureUnitState->getTextureAddressingMode();
 
         switch( mSamplerStateType )
         {
@@ -2362,9 +2361,9 @@ namespace Ogre {
 
     }
     //---------------------------------------------------------------------
-    TextureUnitState::TextureAddressingMode CgFxScriptLoader::CgWrapSamplerStateListener::getOgreTextureAddressingMode( CGstateassignment cgStateAssignment )
+    TextureAddressingMode CgFxScriptLoader::CgWrapSamplerStateListener::getOgreTextureAddressingMode( CGstateassignment cgStateAssignment )
     {
-        TextureUnitState::TextureAddressingMode ogreTextureAddressingMode = TextureUnitState::TAM_WRAP;
+        TextureAddressingMode ogreTextureAddressingMode = TextureUnitState::TAM_WRAP;
         switch( getValue( cgStateAssignment ) )
         {
         case WT_REPEAT: // Repeat
@@ -3603,7 +3602,7 @@ namespace Ogre {
                 String theWordLight = "Light";
                 if (StringUtil::startsWith(uiNameValueAsString, theWordLight, false))
                 {
-                    size_t firstSpacePos = uiNameValueAsString.find(" ");
+                    size_t firstSpacePos = uiNameValueAsString.find(' ');
                     if (firstSpacePos > 0)
                     {
                         String lightNumberAsString = uiNameValueAsString.substr(theWordLight.size(), firstSpacePos - theWordLight.size());

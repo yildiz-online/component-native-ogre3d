@@ -25,7 +25,7 @@
  * THE SOFTWARE.
  * -----------------------------------------------------------------------------
  */
-#include "OgreLodData.h"
+#include "OgreMeshLodPrecompiledHeaders.h"
 
 namespace Ogre
 {
@@ -68,21 +68,6 @@ size_t LodData::VertexHash::operator() (const LodData::Vertex* v) const
     hash ^= (int)(v->position.y * stretch) * 0x100;
     hash ^= (int)(v->position.z * stretch) * 0x10000;
     return (size_t)hash;
-}
-
-void LodData::Triangle::computeNormal()
-{
-    // Cross-product 2 edges
-    Vector3 e1 = vertex[1]->position - vertex[0]->position;
-    Vector3 e2 = vertex[2]->position - vertex[1]->position;
-
-    normal = e1.crossProduct(e2);
-    normal.normalise();
-}
-
-bool LodData::Triangle::hasVertex(const LodData::Vertex* v) const
-{
-    return (v == vertex[0] || v == vertex[1] || v == vertex[2]);
 }
 
 unsigned int LodData::Triangle::getVertexID(const LodData::Vertex* v) const

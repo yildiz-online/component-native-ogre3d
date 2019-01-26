@@ -26,12 +26,6 @@ THE SOFTWARE.
 -----------------------------------------------------------------------------
 */
 #include "OgreStableHeaders.h"
-#include "OgreWireBoundingBox.h"
-
-#include "OgreSimpleRenderable.h"
-#include "OgreHardwareBufferManager.h"
-#include "OgreCamera.h"
-#include "OgreMaterialManager.h"
 
 namespace Ogre {
     #define POSITION_BINDING 0
@@ -217,14 +211,7 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     Real WireBoundingBox::getSquaredViewDepth(const Camera* cam) const
     {
-        Vector3 min, max, mid, dist;
-        min = mBox.getMinimum();
-        max = mBox.getMaximum();
-        mid = ((max - min) * 0.5) + min;
-        dist = cam->getDerivedPosition() - mid;
-
-
-        return dist.squaredLength();
+        return (cam->getDerivedPosition() - mBox.getCenter()).squaredLength();
     }
 
 

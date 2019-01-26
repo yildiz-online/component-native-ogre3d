@@ -61,14 +61,16 @@ namespace Ogre {
 
     void GLSLMonolithicProgram::activate(void)
     {
-        if (!mLinked && !mTriedToLinkAndFailed)
+        if (!mLinked)
         {
+            uint32 hash = getCombinedHash();
+
             OGRE_CHECK_GL_ERROR(mGLProgramHandle = glCreateProgram());
 
             if ( GpuProgramManager::getSingleton().canGetCompiledShaderBuffer() &&
-                 GpuProgramManager::getSingleton().isMicrocodeAvailableInCache(getCombinedName()) )
+                 GpuProgramManager::getSingleton().isMicrocodeAvailableInCache(hash) )
             {
-                getMicrocodeFromCache();
+                getMicrocodeFromCache(hash);
             }
             else
             {
@@ -88,71 +90,19 @@ namespace Ogre {
 
     void GLSLMonolithicProgram::compileAndLink()
     {
-        // Compile and attach Vertex Program
+        // attach Vertex Program
         if (mVertexShader)
         {
-            if (!getVertexShader()->compile(true))
-            {
-                mTriedToLinkAndFailed = true;
-                return;
-            }
             getVertexShader()->attachToProgramObject(mGLProgramHandle);
             setSkeletalAnimationIncluded(mVertexShader->isSkeletalAnimationIncluded());
         }
 
-        // Compile and attach Fragment Program
-        if (mFragmentShader)
+        // attach remaining Programs
+        for (auto shader : {mFragmentShader, mGeometryShader, mHullShader, mDomainShader, mComputeShader})
         {
-            if (!mFragmentShader->compile(true))
-            {
-                mTriedToLinkAndFailed = true;
-                return;
-            }
-            mFragmentShader->attachToProgramObject(mGLProgramHandle);
-        }
+        	if(!shader) continue;
 
-        // Compile and attach Geometry Program
-        if (mGeometryShader)
-        {
-            if (!mGeometryShader->compile(true))
-            {
-                return;
-            }
-
-            mGeometryShader->attachToProgramObject(mGLProgramHandle);
-        }
-
-        // Compile and attach Tessellation Control Program
-        if (mHullShader)
-        {
-            if (!mHullShader->compile(true))
-            {
-                return;
-            }
-
-            mHullShader->attachToProgramObject(mGLProgramHandle);
-        }
-
-        // Compile and attach Tessellation Evaluation Program
-        if (mDomainShader)
-        {
-            if (!mDomainShader->compile(true))
-            {
-                return;
-            }
-
-            mDomainShader->attachToProgramObject(mGLProgramHandle);
-        }
-
-        // Compile and attach Compute Program
-        if (mComputeShader)
-        {
-            if (!mComputeShader->compile(true))
-            {
-                return;
-            }
-
-            mComputeShader->attachToProgramObject(mGLProgramHandle);
+            shader->attachToProgramObject(mGLProgramHandle);
         }
 
         bindFixedAttributes(mGLProgramHandle);
@@ -160,8 +110,6 @@ namespace Ogre {
         // the link
         OGRE_CHECK_GL_ERROR(glLinkProgram( mGLProgramHandle ));
         OGRE_CHECK_GL_ERROR(glGetProgramiv( mGLProgramHandle, GL_LINK_STATUS, &mLinked ));
-
-        mTriedToLinkAndFailed = !mLinked;
 
         logObjectInfo( getCombinedName() + String(" GLSL link result : "), mGLProgramHandle );
 
@@ -176,8 +124,6 @@ namespace Ogre {
             if ( GpuProgramManager::getSingleton().getSaveMicrocodesToCache() )
             {
                 // add to the microcode to the cache
-                String name;
-                name = getCombinedName();
 
                 // get buffer size
                 GLint binaryLength = 0;
@@ -191,7 +137,7 @@ namespace Ogre {
                 OGRE_CHECK_GL_ERROR(glGetProgramBinary(mGLProgramHandle, binaryLength, NULL, (GLenum *)newMicrocode->getPtr(), newMicrocode->getPtr() + sizeof(GLenum)));
 
                 // add to the microcode to the cache
-                GpuProgramManager::getSingleton().addMicrocodeToCache(name, newMicrocode);
+                GpuProgramManager::getSingleton().addMicrocodeToCache(getCombinedHash(), newMicrocode);
             }
         }
     }
@@ -233,7 +179,7 @@ namespace Ogre {
         GLUniformReferenceIterator endUniform = mGLUniformReferences.end();
 
         // determine if we need to transpose matrices when binding
-        int transpose = GL_TRUE;
+        bool transpose = GL_TRUE;
         if ((fromProgType == GPT_FRAGMENT_PROGRAM && mVertexShader && (!getVertexShader()->getColumnMajorMatrices())) ||
             (fromProgType == GPT_VERTEX_PROGRAM && mFragmentShader && (!mFragmentShader->getColumnMajorMatrices())) ||
             (fromProgType == GPT_GEOMETRY_PROGRAM && mGeometryShader && (!mGeometryShader->getColumnMajorMatrices())) ||

@@ -97,23 +97,22 @@ public:
 protected:
 
     //-----------------------------------------------------------------------------
-    typedef map<String, GpuProgramPtr>::type            GpuProgramsMap;
-    typedef map<String, String>::type                   ProgramSourceToNameMap;
+    typedef std::map<String, GpuProgramPtr>            GpuProgramsMap;
     typedef GpuProgramsMap::iterator                    GpuProgramsMapIterator;
     typedef GpuProgramsMap::const_iterator              GpuProgramsMapConstIterator;
 
     //-----------------------------------------------------------------------------
-    typedef set<Program*>::type                         ProgramList;
+    typedef std::set<Program*>                         ProgramList;
     typedef ProgramList::iterator                       ProgramListIterator;
-    typedef map<String, ProgramWriter*>::type           ProgramWriterMap;
+    typedef std::map<String, ProgramWriter*>           ProgramWriterMap;
     typedef ProgramWriterMap::iterator                  ProgramWriterIterator;
-    typedef vector<ProgramWriterFactory*>::type         ProgramWriterFactoryList;
+    typedef std::vector<ProgramWriterFactory*>         ProgramWriterFactoryList;
     
     //-----------------------------------------------------------------------------
-    typedef map<String, ProgramProcessor*>::type        ProgramProcessorMap;
+    typedef std::map<String, ProgramProcessor*>        ProgramProcessorMap;
     typedef ProgramProcessorMap::iterator               ProgramProcessorIterator;
     typedef ProgramProcessorMap::const_iterator         ProgramProcessorConstIterator;
-    typedef vector<ProgramProcessor*>::type             ProgramProcessorList;
+    typedef std::vector<ProgramProcessor*>             ProgramProcessorList;
 
     
 protected:
@@ -149,10 +148,11 @@ protected:
         
     /** 
     Generates a unique hash from a string
-    @param programString string to generate a hash value for
+    @param programString source code to generate a hash value for
+    @param defines defines for the final source code
     @return A string representing a 128 bit hash value of the original string
     */
-    static String generateHash(const String& programString);
+    static String generateHash(const String& programString, const String& defines);
 
     /** Create GPU program based on the give CPU program.
     @param shaderProgram The CPU program instance.
@@ -191,11 +191,8 @@ protected:
     */
     void flushGpuProgramsCache(GpuProgramsMap& gpuProgramsMap);
     
-    /** Return the number of created vertex shaders. */
-    size_t getVertexShaderCount() const { return mVertexShaderMap.size(); }
-
-    /** Return the number of created fragment shaders. */
-    size_t getFragmentShaderCount() const { return mFragmentShaderMap.size(); }
+    /** Return the number of created shaders. */
+    size_t getShaderCount(GpuProgramType type) const;
 
     /** Fix the input of the pixel shader to be the same as the output of the vertex shader */
     void synchronizePixelnToBeVertexOut(ProgramSet* programSet);
@@ -222,8 +219,6 @@ protected:
     GpuProgramsMap mFragmentShaderMap;
     // The default program processors.
     ProgramProcessorList mDefaultProgramProcessors;
-    // map the source code of the shaders to a name for them
-    ProgramSourceToNameMap mProgramSourceToNameMap;
 
 private:
     friend class ProgramSet;

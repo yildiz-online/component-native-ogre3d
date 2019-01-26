@@ -105,13 +105,110 @@ namespace Ogre {
         }
     }
 
-    bool GLSLShader::compile(bool checkErrors)
+    void GLSLShader::submitSource()
     {
-        if (mCompiled == 1)
+        if (mSource.empty())
+            return;
+
+        const RenderSystemCapabilities* rsc = Root::getSingleton().getRenderSystem()->getCapabilities();
+
+        bool clipDistBug =
+            ((OGRE_PLATFORM == OGRE_PLATFORM_WIN32) || (OGRE_PLATFORM == OGRE_PLATFORM_WINRT)) &&
+            rsc->getVendor() == GPU_INTEL;
+
+        size_t versionPos = mSource.find("#version");
+        int shaderVersion = 100;
+        size_t belowVersionPos = 0;
+
+        if(versionPos != String::npos)
         {
-            return true;
+            shaderVersion = StringConverter::parseInt(mSource.substr(versionPos+9, 3));
+            belowVersionPos = mSource.find('\n', versionPos) + 1;
         }
 
+        // OSX driver only supports glsl150+ in core profile
+        bool shouldUpgradeToVersion150 = !rsc->isShaderProfileSupported("glsl130") && shaderVersion < 150;
+
+        // Add standard shader input and output blocks, if missing.
+        // Assume blocks are missing if gl_Position is missing.
+        if (rsc->hasCapability(RSC_GLSL_SSO_REDECLARE) && (mSource.find("vec4 gl_Position") == String::npos))
+        {
+            size_t mainPos = mSource.find("void main");
+            // Only add blocks if shader is not a child
+            // shader, i.e. has a main function.
+            if (mainPos != String::npos)
+            {
+                String clipDistDecl = clipDistBug ? "float gl_ClipDistance[1];" : "float gl_ClipDistance[];";
+                String inBlock = "in gl_PerVertex\n{\nvec4 gl_Position;\nfloat gl_PointSize;\n"+clipDistDecl+"\n} gl_in[];\n\n";
+                String outBlock = "out gl_PerVertex\n{\nvec4 gl_Position;\nfloat gl_PointSize;\n"+clipDistDecl+"\n};\n\n";
+
+                if (shaderVersion >= 150 || shouldUpgradeToVersion150)
+                {
+                    switch (mType)
+                    {
+                    case GPT_VERTEX_PROGRAM:
+                        mSource.insert(belowVersionPos, outBlock);
+                        break;
+                    case GPT_GEOMETRY_PROGRAM:
+                        mSource.insert(belowVersionPos, outBlock);
+                        mSource.insert(belowVersionPos, inBlock);
+                        break;
+                    case GPT_DOMAIN_PROGRAM:
+                        mSource.insert(belowVersionPos, outBlock);
+                        mSource.insert(belowVersionPos, inBlock);
+                        break;
+                    case GPT_HULL_PROGRAM:
+                        mSource.insert(belowVersionPos, outBlock.substr(0, outBlock.size() - 3) + " gl_out[];\n\n");
+                        mSource.insert(belowVersionPos, inBlock);
+                        break;
+                    case GPT_FRAGMENT_PROGRAM:
+                    case GPT_COMPUTE_PROGRAM:
+                        // Fragment and compute shaders do
+                        // not have standard blocks.
+                        break;
+                    }
+                }
+                else if(mType == GPT_VERTEX_PROGRAM && shaderVersion >= 130) // shaderVersion < 150, means we only have vertex shaders
+                {
+                	// TODO: can we have SSO with GLSL < 130?
+                    mSource.insert(belowVersionPos, "out vec4 gl_Position;\nout float gl_PointSize;\nout "+clipDistDecl+"\n\n");
+                }
+            }
+        }
+
+        if(shouldUpgradeToVersion150)
+        {
+            if(belowVersionPos != 0)
+                mSource = mSource.erase(0, belowVersionPos); // drop old definition
+
+            // automatically upgrade to glsl150. thank you apple.
+            const char* prefixFp =
+                    "#version 150\n"
+                    "#define varying in\n"
+                    "#define texture1D texture\n"
+                    "#define texture2D texture\n"
+                    "#define texture3D texture\n"
+                    "#define textureCube texture\n"
+                    "#define texture2DLod textureLod\n"
+                    "#define textureCubeLod textureLod\n"
+                    "#define shadow2DProj textureProj\n"
+                    "#define gl_FragColor FragColor\n"
+                    "out vec4 FragColor;\n";
+            const char* prefixVp =
+                    "#version 150\n"
+                    "#define attribute in\n"
+                    "#define varying out\n";
+
+            mSource.insert(0, mType == GPT_FRAGMENT_PROGRAM ? prefixFp : prefixVp);
+        }
+
+        // Submit shader source.
+        const char *source = mSource.c_str();
+        OGRE_CHECK_GL_ERROR(glShaderSource(mGLShaderHandle, 1, &source, NULL));
+    }
+
+    bool GLSLShader::compile(bool checkErrors)
+    {
         // Create shader object.
         GLenum GLShaderType = getGLShaderType(mType);
         OGRE_CHECK_GL_ERROR(mGLShaderHandle = glCreateShader(GLShaderType));
@@ -128,84 +225,27 @@ namespace Ogre {
         //         glObjectLabel(GL_PROGRAM, mGLProgramHandle, 0, mName.c_str());
         // }
 
-        // Add boiler plate code and preprocessor extras, then
-        // submit shader source to OpenGL.
-        if (!mSource.empty())
-        {
-            // Add standard shader input and output blocks, if missing.
-            if (Root::getSingleton().getRenderSystem()->getCapabilities()->hasCapability(RSC_GLSL_SSO_REDECLARE))
-            {
-                // Assume blocks are missing if gl_Position is missing.
-                if (mSource.find("vec4 gl_Position") == String::npos)
-                {
-                    size_t mainPos = mSource.find("void main");
-                    // Only add blocks if shader is not a child
-                    // shader, i.e. has a main function.
-                    if (mainPos != String::npos)
-                    {
-                        size_t versionPos = mSource.find("#version");
-                        int shaderVersion = 100;
-                        size_t belowVersionPos = 0;
-
-                        if(versionPos != String::npos)
-                        {
-                        	shaderVersion = StringConverter::parseInt(mSource.substr(versionPos+9, 3));
-                            belowVersionPos = mSource.find("\n", versionPos) + 1;
-                        }
-
-                        if (shaderVersion >= 150)
-                        {
-                            switch (mType)
-                            {
-                            case GPT_VERTEX_PROGRAM:
-                                mSource.insert(belowVersionPos, "out gl_PerVertex\n{\nvec4 gl_Position;\nfloat gl_PointSize;\nfloat gl_ClipDistance[];\n};\n\n");
-                                break;
-                            case GPT_GEOMETRY_PROGRAM:
-                                mSource.insert(belowVersionPos, "out gl_PerVertex\n{\nvec4 gl_Position;\nfloat gl_PointSize;\nfloat gl_ClipDistance[];\n};\n\n");
-                                mSource.insert(belowVersionPos, "in gl_PerVertex\n{\nvec4 gl_Position;\nfloat gl_PointSize;\nfloat gl_ClipDistance[];\n} gl_in[];\n\n");
-                                break;
-                            case GPT_DOMAIN_PROGRAM:
-                                mSource.insert(belowVersionPos, "out gl_PerVertex\n{\nvec4 gl_Position;\nfloat gl_PointSize;\nfloat gl_ClipDistance[];\n};\n\n");
-                                mSource.insert(belowVersionPos, "in gl_PerVertex\n{\nvec4 gl_Position;\nfloat gl_PointSize;\nfloat gl_ClipDistance[];\n} gl_in[];\n\n");
-                                break;
-                            case GPT_HULL_PROGRAM:
-                                mSource.insert(belowVersionPos, "out gl_PerVertex\n{\nvec4 gl_Position;\nfloat gl_PointSize;\nfloat gl_ClipDistance[];\n} gl_out[];\n\n");
-                                mSource.insert(belowVersionPos, "in gl_PerVertex\n{\nvec4 gl_Position;\nfloat gl_PointSize;\nfloat gl_ClipDistance[];\n} gl_in[];\n\n");
-                                break;
-                            case GPT_FRAGMENT_PROGRAM:
-                            case GPT_COMPUTE_PROGRAM:
-                                // Fragment and compute shaders do
-                                // not have standard blocks.
-                                break;
-                            }
-                        }
-                        else if(mType == GPT_VERTEX_PROGRAM) // shaderVersion < 150, means we only have vertex shaders
-                        {
-                            mSource.insert(belowVersionPos, "varying vec4 gl_Position;\nvarying float gl_PointSize;\nvarying float gl_ClipDistance[];\n\n");
-                        }
-                    }
-                }
-            }
-            // Submit shader source.
-            const char *source = mSource.c_str();
-            OGRE_CHECK_GL_ERROR(glShaderSource(mGLShaderHandle, 1, &source, NULL));
-        }
+        submitSource();
 
         OGRE_CHECK_GL_ERROR(glCompileShader(mGLShaderHandle));
 
         // Check for compile errors
-        OGRE_CHECK_GL_ERROR(glGetShaderiv(mGLShaderHandle, GL_COMPILE_STATUS, &mCompiled));
-        if (!mCompiled && checkErrors)
-        {
-            String message = logObjectInfo("GLSL compile log: " + mName, mGLShaderHandle);
-            checkAndFixInvalidDefaultPrecisionError(message);
-        }
+        int compiled = 0;
+        OGRE_CHECK_GL_ERROR(glGetShaderiv(mGLShaderHandle, GL_COMPILE_STATUS, &compiled));
 
-        // Log a message that the shader compiled successfully.
-        if (mCompiled && checkErrors)
-            logObjectInfo("GLSL compiled: " + mName, mGLShaderHandle);
+        if(!checkErrors)
+            return compiled == 1;
 
-        return (mCompiled == 1);
+        String compileInfo = getObjectInfo(mGLShaderHandle);
+
+        if (!compiled)
+            OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, getResourceLogName() + " " + compileInfo, "compile");
+
+        // probably we have warnings
+        if (!compileInfo.empty())
+            LogManager::getSingleton().stream(LML_WARNING) << getResourceLogName() << " " << compileInfo;
+
+        return compiled == 1;
     }
 
 
@@ -231,7 +271,6 @@ namespace Ogre {
 
         mGLShaderHandle = 0;
         mGLProgramHandle = 0;
-        mCompiled = 0;
         mLinked = 0;
     }
 
@@ -259,13 +298,8 @@ namespace Ogre {
     void GLSLShader::attachToProgramObject(const GLuint programObject)
     {
         // attach child objects
-        GLSLProgramContainerIterator childProgramCurrent = mAttachedGLSLPrograms.begin();
-        GLSLProgramContainerIterator childProgramEnd = mAttachedGLSLPrograms.end();
-
-        for (; childProgramCurrent != childProgramEnd; ++childProgramCurrent)
+        for (auto childShader : mAttachedGLSLPrograms)
         {
-            GLSLShaderCommon* childShader = *childProgramCurrent;
-            childShader->compile(true);
             childShader->attachToProgramObject(programObject);
         }
         OGRE_CHECK_GL_ERROR(glAttachShader(programObject, mGLShaderHandle));
@@ -303,60 +337,6 @@ namespace Ogre {
         return params;
     }
 
-
-    void GLSLShader::checkAndFixInvalidDefaultPrecisionError(String &message)
-    {
-        String precisionQualifierErrorString = ": 'Default Precision Qualifier' :  invalid type Type for default precision qualifier can be only float or int";
-        vector< String >::type linesOfSource = StringUtil::split(mSource, "\n");
-        if (message.find(precisionQualifierErrorString) != String::npos)
-        {
-            LogManager::getSingleton().logMessage("Fixing invalid type Type for default precision qualifier by deleting bad lines the re-compiling", LML_CRITICAL);
-
-            // remove relevant lines from source
-            vector< String >::type errors = StringUtil::split(message, "\n");
-
-            // going from the end so when we delete a line the numbers of the lines before will not change
-            for (int i = (int)errors.size() - 1 ; i != -1 ; i--)
-            {
-                String & curError = errors[i];
-                size_t foundPos = curError.find(precisionQualifierErrorString);
-                if (foundPos != String::npos)
-                {
-                    String lineNumber = curError.substr(0, foundPos);
-                    size_t posOfStartOfNumber = lineNumber.find_last_of(':');
-                    if (posOfStartOfNumber != String::npos)
-                    {
-                        lineNumber = lineNumber.substr(posOfStartOfNumber +     1, lineNumber.size() - (posOfStartOfNumber + 1));
-                        if (StringConverter::isNumber(lineNumber))
-                        {
-                            int iLineNumber = StringConverter::parseInt(lineNumber);
-                            linesOfSource.erase(linesOfSource.begin() + iLineNumber - 1);
-                        }
-                    }
-                }
-            }
-            // rebuild source
-            StringStream newSource;
-            for (size_t i = 0; i < linesOfSource.size()  ; i++)
-            {
-                newSource << linesOfSource[i] << "\n";
-            }
-            mSource = newSource.str();
-
-            const char *source = mSource.c_str();
-            OGRE_CHECK_GL_ERROR(glShaderSource(mGLShaderHandle, 1, &source, NULL));
-            // Check for load errors
-            if (compile(true))
-            {
-                LogManager::getSingleton().logMessage("The removing of the lines fixed the invalid type Type for default precision qualifier error.", LML_CRITICAL);
-            }
-            else
-            {
-                LogManager::getSingleton().logMessage("The removing of the lines didn't help.", LML_CRITICAL);
-            }
-        }
-    }
-
     GLenum GLSLShader::getGLShaderType(GpuProgramType programType)
     {
         //TODO Convert to map, or is speed different negligible?
@@ -379,35 +359,6 @@ namespace Ogre {
         //TODO add warning or error
         return 0;
     }
-
-    String GLSLShader::getShaderTypeLabel(GpuProgramType programType)
-    {
-        switch (programType)
-        {
-        case GPT_VERTEX_PROGRAM:
-            return "vertex";
-            break;
-        case GPT_DOMAIN_PROGRAM:
-            return "tessellation evaluation";
-            break;
-        case GPT_HULL_PROGRAM:
-            return "tessellation control";
-            break;
-        case GPT_GEOMETRY_PROGRAM:
-            return "geometry";
-            break;
-        case GPT_FRAGMENT_PROGRAM:
-            return "fragment";
-            break;
-        case GPT_COMPUTE_PROGRAM:
-            return "compute";
-            break;
-        }
-
-        //TODO add warning or error
-        return 0;
-    }
-
 
     GLuint GLSLShader::getGLProgramHandle() {
         //TODO This should be removed and the compile() function
@@ -481,7 +432,7 @@ namespace Ogre {
     }
 
 
-    void GLSLShader::bindParameters(GpuProgramParametersSharedPtr params, uint16 mask)
+    void GLSLShader::bindParameters(const GpuProgramParametersPtr& params, uint16 mask)
     {
         // Link can throw exceptions, ignore them at this point.
         try
@@ -516,6 +467,11 @@ namespace Ogre {
             program->updateUniformBlocks(params, mask, mType);
             // program->updateShaderStorageBlock(params, mask, mType);
 
+        }
+        catch (InvalidParametersException& e)
+        {
+            LogManager::getSingleton().logError("binding shared parameters failed: " +
+                                                e.getDescription());
         }
         catch (Exception&) {}
     }

@@ -39,6 +39,8 @@ THE SOFTWARE.
 #include "OgreViewport.h"
 #include "OgreRoot.h"
 #include "OgreVolumeChunk.h"
+
+#include <cmath>
 #include "OgreVolumeMeshBuilder.h"
 #include "OgreVolumeOctreeNode.h"
 #include "OgreMaterialManager.h"
@@ -315,9 +317,7 @@ namespace Volume {
         if (parameters->baseError == (Real)0.0 || parameters->errorMultiplicator == (Real)0.0 ||
             parameters->sceneManager == 0 || parameters->src == 0)
         {
-            OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, 
-                "Invalid parameters given!",
-                __FUNCTION__);
+            OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, "Invalid parameters given!");
         }
         
         isRoot = true;
@@ -507,7 +507,7 @@ namespace Volume {
             return true;
         }
     
-        Real k = ((Real)mCamera->getViewport()->getActualHeight() / ((Real)2.0 * tan(mCamera->getFOVy().valueRadians() / (Real)2.0)));
+        Real k = ((Real)mCamera->getViewport()->getActualHeight() / ((Real)2.0 * std::tan(mCamera->getFOVy().valueRadians() / (Real)2.0)));
 
         
         // Get the distance to the center.
@@ -573,11 +573,6 @@ namespace Volume {
     
     //-----------------------------------------------------------------------
 
-    void Chunk::setMaterial(const String& matName)
-    {
-        setMaterial(MaterialManager::getSingleton().getByName(matName));
-    }
-
     void Chunk::setMaterial(const MaterialPtr& mat)
     {
         SimpleRenderable::setMaterial(mat);
@@ -599,11 +594,6 @@ namespace Volume {
     }
     
     //-----------------------------------------------------------------------
-    void Chunk::setMaterialOfLevel(size_t level, const String& matName)
-    {
-        setMaterialOfLevel(level, MaterialManager::getSingleton().getByName(matName));
-    }
-
     void Chunk::setMaterialOfLevel(size_t level, const MaterialPtr& mat)
     {
         if (level == 0)

@@ -26,19 +26,13 @@ THE SOFTWARE.
 -----------------------------------------------------------------------------
 */
 #include "OgreStableHeaders.h"
-
-#include "OgreTechnique.h"
 #include "OgreMaterial.h"
-#include "OgrePass.h"
-#include "OgreRoot.h"
-#include "OgreRenderSystem.h"
-#include "OgreMaterialManager.h"
 
 
 namespace Ogre {
     //-----------------------------------------------------------------------------
     Technique::Technique(Material* parent)
-        : mParent(parent), mIsSupported(false), mIlluminationPassesCompilationPhase(IPS_NOT_COMPILED), mLodIndex(0), mSchemeIndex(0)
+        : mParent(parent), mIlluminationPassesCompilationPhase(IPS_NOT_COMPILED), mLodIndex(0), mSchemeIndex(0), mIsSupported(false)
     {
         // See above, defaults to unsupported until examined
     }
@@ -322,16 +316,16 @@ namespace Ogre {
         return newPass;
     }
     //-----------------------------------------------------------------------------
-    Pass* Technique::getPass(unsigned short index)
+    Pass* Technique::getPass(unsigned short index) const
     {
         assert(index < mPasses.size() && "Index out of bounds");
         return mPasses[index];
     }
     //-----------------------------------------------------------------------------
-    Pass* Technique::getPass(const String& name)
+    Pass* Technique::getPass(const String& name) const
     {
-        Passes::iterator i    = mPasses.begin();
-        Passes::iterator iend = mPasses.end();
+        Passes::const_iterator i    = mPasses.begin();
+        Passes::const_iterator iend = mPasses.end();
         Pass* foundPass = 0;
 
         // iterate through techniques to find a match
@@ -633,7 +627,7 @@ namespace Ogre {
 
     }
     //-----------------------------------------------------------------------
-    void Technique::setAmbient(Real red, Real green, Real blue)
+    void Technique::setAmbient(float red, float green, float blue)
     {
         setAmbient(ColourValue(red, green, blue));
         
@@ -650,7 +644,7 @@ namespace Ogre {
         }
     }
     //-----------------------------------------------------------------------
-    void Technique::setDiffuse(Real red, Real green, Real blue, Real alpha)
+    void Technique::setDiffuse(float red, float green, float blue, float alpha)
     {
         Passes::iterator i, iend;
         iend = mPasses.end();
@@ -665,7 +659,7 @@ namespace Ogre {
         setDiffuse(diffuse.r, diffuse.g, diffuse.b, diffuse.a);
     }
     //-----------------------------------------------------------------------
-    void Technique::setSpecular(Real red, Real green, Real blue, Real alpha)
+    void Technique::setSpecular(float red, float green, float blue, float alpha)
     {
         Passes::iterator i, iend;
         iend = mPasses.end();
@@ -690,7 +684,7 @@ namespace Ogre {
         }
     }
     //-----------------------------------------------------------------------
-    void Technique::setSelfIllumination(Real red, Real green, Real blue)
+    void Technique::setSelfIllumination(float red, float green, float blue)
     {
         setSelfIllumination(ColourValue(red, green, blue));
     }
@@ -742,6 +736,16 @@ namespace Ogre {
         for (i = mPasses.begin(); i != iend; ++i)
         {
             (*i)->setColourWriteEnabled(enabled);
+        }
+    }
+    //-----------------------------------------------------------------------
+    void Technique::setColourWriteEnabled(bool red, bool green, bool blue, bool alpha)
+    {
+        Passes::iterator i, iend;
+        iend = mPasses.end();
+        for (i = mPasses.begin(); i != iend; ++i)
+        {
+            (*i)->setColourWriteEnabled(red, green, blue, alpha);
         }
     }
     //-----------------------------------------------------------------------

@@ -28,10 +28,6 @@ THE SOFTWARE.
 #include "OgreStableHeaders.h"
 
 #include "OgreMaterial.h"
-
-#include "OgreMaterialManager.h"
-#include "OgreTechnique.h"
-#include "OgreLogManager.h"
 #include "OgreLodStrategyManager.h"
 #include "OgreLodStrategy.h"
 
@@ -194,16 +190,11 @@ namespace Ogre {
     MaterialPtr Material::clone(const String& newName, bool changeGroup, 
         const String& newGroup) const
     {
-        MaterialPtr newMat;
-        if (changeGroup)
-        {
-            newMat = MaterialManager::getSingleton().create(newName, newGroup);
-        }
-        else
-        {
-            newMat = MaterialManager::getSingleton().create(newName, mGroup);
-        }
-        
+        MaterialPtr newMat =
+            MaterialManager::getSingleton().create(newName, changeGroup ? newGroup : mGroup);
+
+        if(!newMat) // interception by collision handler
+            return newMat;
 
         // Keep handle (see below, copy overrides everything)
         ResourceHandle newHandle = newMat->getHandle();
@@ -220,9 +211,6 @@ namespace Ogre {
         newMat->mHandle = newHandle;
 
         return newMat;
-
-
-
     }
     //-----------------------------------------------------------------------
     void Material::copyDetailsTo(MaterialPtr& mat) const
@@ -276,16 +264,16 @@ namespace Ogre {
         return t;
     }
     //-----------------------------------------------------------------------
-    Technique* Material::getTechnique(unsigned short index)
+    Technique* Material::getTechnique(unsigned short index) const
     {
         assert (index < mTechniques.size() && "Index out of bounds.");
         return mTechniques[index];
     }
     //-----------------------------------------------------------------------
-    Technique* Material::getTechnique(const String& name)
+    Technique* Material::getTechnique(const String& name) const
     {
-        Techniques::iterator i    = mTechniques.begin();
-        Techniques::iterator iend = mTechniques.end();
+        Techniques::const_iterator i    = mTechniques.begin();
+        Techniques::const_iterator iend = mTechniques.end();
         Technique* foundTechnique = 0;
 
         // iterate through techniques to find a match
@@ -539,7 +527,7 @@ namespace Ogre {
 
     }
     //-----------------------------------------------------------------------
-    void Material::setAmbient(Real red, Real green, Real blue)
+    void Material::setAmbient(float red, float green, float blue)
     {
         setAmbient(ColourValue(red, green, blue));
     }
@@ -554,7 +542,7 @@ namespace Ogre {
         }
     }
     //-----------------------------------------------------------------------
-    void Material::setDiffuse(Real red, Real green, Real blue, Real alpha)
+    void Material::setDiffuse(float red, float green, float blue, float alpha)
     {
         Techniques::iterator i, iend;
         iend = mTechniques.end();
@@ -569,7 +557,7 @@ namespace Ogre {
         setDiffuse(diffuse.r, diffuse.g, diffuse.b, diffuse.a);
     }
     //-----------------------------------------------------------------------
-    void Material::setSpecular(Real red, Real green, Real blue, Real alpha)
+    void Material::setSpecular(float red, float green, float blue, float alpha)
     {
         Techniques::iterator i, iend;
         iend = mTechniques.end();
@@ -594,7 +582,7 @@ namespace Ogre {
         }
     }
     //-----------------------------------------------------------------------
-    void Material::setSelfIllumination(Real red, Real green, Real blue)
+    void Material::setSelfIllumination(float red, float green, float blue)
     {
         setSelfIllumination(ColourValue(red, green, blue));   
     }
@@ -646,6 +634,16 @@ namespace Ogre {
         for (i = mTechniques.begin(); i != iend; ++i)
         {
             (*i)->setColourWriteEnabled(enabled);
+        }
+    }
+    //-----------------------------------------------------------------------
+    void Material::setColourWriteEnabled(bool red, bool green, bool blue, bool alpha)
+    {
+        Techniques::iterator i, iend;
+        iend = mTechniques.end();
+        for (i = mTechniques.begin(); i != iend; ++i)
+        {
+            (*i)->setColourWriteEnabled(red, green, blue, alpha);
         }
     }
     //-----------------------------------------------------------------------

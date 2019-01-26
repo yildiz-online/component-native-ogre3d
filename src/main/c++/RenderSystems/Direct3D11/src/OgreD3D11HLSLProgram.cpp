@@ -160,7 +160,7 @@ namespace Ogre {
         Resource* mProgram;
     };
 
-    void D3D11HLSLProgram::getDefines(String& stringBuffer, vector<D3D_SHADER_MACRO>::type& defines, const String& definesString)
+    void D3D11HLSLProgram::getDefines(String& stringBuffer, std::vector<D3D_SHADER_MACRO>& defines, const String& definesString)
     {
         // Populate preprocessor defines
         stringBuffer = definesString;
@@ -274,9 +274,10 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     void D3D11HLSLProgram::loadFromSource(void)
     {
-        if ( GpuProgramManager::getSingleton().isMicrocodeAvailableInCache(getNameForMicrocodeCache()) )
+        uint32 hash = getNameForMicrocodeCache();
+        if ( GpuProgramManager::getSingleton().isMicrocodeAvailableInCache(hash) )
         {
-            getMicrocodeFromCache();
+            getMicrocodeFromCache(hash);
         }
         else
         {
@@ -284,10 +285,10 @@ namespace Ogre {
         }
     }
     //-----------------------------------------------------------------------
-    void D3D11HLSLProgram::getMicrocodeFromCache(void)
+    void D3D11HLSLProgram::getMicrocodeFromCache(uint32 id)
     {
         GpuProgramManager::Microcode cacheMicrocode = 
-            GpuProgramManager::getSingleton().getMicrocodeFromCache(getNameForMicrocodeCache());
+            GpuProgramManager::getSingleton().getMicrocodeFromCache(id);
 
         cacheMicrocode->seek(0);
 
@@ -469,7 +470,7 @@ namespace Ogre {
         HLSLIncludeHandler includeHandler(this);
 
         String stringBuffer;
-        vector<D3D_SHADER_MACRO>::type defines;
+        std::vector<D3D_SHADER_MACRO> defines;
         const D3D_SHADER_MACRO* pDefines = NULL;
         if (!shaderMacroSet)
         {
@@ -1255,15 +1256,10 @@ namespace Ogre {
                 currentBuffer = mFloatLogicalToPhysical.get();
                 currentBufferSize = &mConstantDefs->floatBufferSize;
             }
-            else if (def.isInt())
+            else if (def.isInt() || def.isUnsignedInt())
             {
                 currentBuffer = mIntLogicalToPhysical.get();
                 currentBufferSize = &mConstantDefs->intBufferSize;
-            }
-            else if (def.isUnsignedInt())
-            {
-                currentBuffer = mUIntLogicalToPhysical.get();
-                currentBufferSize = &mConstantDefs->uintBufferSize;
             }
 
             if (currentBuffer != NULL && currentBufferSize != NULL)
@@ -1583,7 +1579,7 @@ namespace Ogre {
     void D3D11HLSLProgram::setTarget(const String& target)
     {
         mTarget = "";
-        vector<String>::type profiles = StringUtil::split(target, " ");
+        std::vector<String> profiles = StringUtil::split(target, " ");
         for(unsigned int i = 0 ; i < profiles.size() ; i++)
         {
             String & currentProfile = profiles[i];
@@ -1964,14 +1960,9 @@ namespace Ogre {
                         {
                             src = (void *)&(*(params->getFloatConstantList().begin() + def.physicalIndex));
                         }
-                        else if (def.isInt())
+                        else if (def.isInt() || def.isUnsignedInt())
                         {
                             src = (void *)&(*(params->getIntConstantList().begin() + def.physicalIndex));
-                        }
-
-                        else if (def.isUnsignedInt())
-                        {
-                            src = (void *)&(*(params->getUnsignedIntConstantList().begin() + def.physicalIndex));
                         }
                         else
                         {
@@ -2122,9 +2113,10 @@ namespace Ogre {
         return mD3d11ShaderOutputParameters.size();
     }
     //-----------------------------------------------------------------------------
-    String D3D11HLSLProgram::getNameForMicrocodeCache()
+    uint32 D3D11HLSLProgram::getNameForMicrocodeCache()
     {
-        return mName + "_" + mTarget;
+        uint32 seed = FastHash("D3D11", 5); // shaders are identical to D3D9 & Cg
+        return _getHash(seed);
     }
 
 

@@ -25,8 +25,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 -----------------------------------------------------------------------------
 */
-#include "OgreStableHeaders.h"
 #include "OgreProperty.h"
+#include "OgrePrerequisites.h"
+#include "OgreColourValue.h"
 
 #include <istream>
 
@@ -101,11 +102,6 @@ namespace Ogre
     void PropertySet::removeProperty(const String& name)
     {
         mPropertyMap.erase(name);
-    }
-    //---------------------------------------------------------------------
-    PropertySet::PropertyIterator PropertySet::getPropertyIterator()
-    {
-        return PropertyIterator(mPropertyMap.begin(), mPropertyMap.end());
     }
     //---------------------------------------------------------------------
     PropertyValueMap PropertySet::getValueMap() const

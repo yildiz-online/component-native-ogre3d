@@ -27,9 +27,6 @@ THE SOFTWARE.
 */
 #include "OgreStableHeaders.h"
 #include "OgrePixelFormat.h"
-#include "OgreBitwise.h"
-#include "OgreColourValue.h"
-#include "OgreException.h"
 #include "OgrePixelFormatDescriptions.h"
 
 namespace {
@@ -47,8 +44,8 @@ namespace Ogre {
     {
         if(PixelUtil::isCompressed(format))
         {
-            if(def.left == left && def.top == top && def.front == front &&
-               def.right == right && def.bottom == bottom && def.back == back)
+            if(def.left == left && def.top == top && def.right == right &&
+			   def.bottom == bottom)
             {
                 // Entire buffer is being queried
                 return *this;
@@ -73,9 +70,9 @@ namespace Ogre {
 
         return rval;
     }
-    void* PixelBox::getTopLeftFrontPixelPtr() const
+    uchar* PixelBox::getTopLeftFrontPixelPtr() const
     {
-        return (uint8*)data + (left + top * rowPitch + front * slicePitch) * PixelUtil::getNumElemBytes(format);
+        return data + (left + top * rowPitch + front * slicePitch) * PixelUtil::getNumElemBytes(format);
     }
     //-----------------------------------------------------------------------
     /**
@@ -123,7 +120,6 @@ namespace Ogre {
                 case PF_BC6H_SF16:
                 case PF_BC6H_UF16:
                 case PF_BC7_UNORM:
-                case PF_BC7_UNORM_SRGB:
                     return ((width+3)/4)*((height+3)/4)*16 * depth;
 
                 // Size calculations from the PVRTC OpenGL extension spec
@@ -236,36 +232,6 @@ namespace Ogre {
         return (PixelUtil::getFlags(format) & PFF_LUMINANCE) > 0;
     }
     //-----------------------------------------------------------------------
-    bool PixelUtil::isValidExtent(size_t width, size_t height, size_t depth, PixelFormat format)
-    {
-        if(isCompressed(format))
-        {
-            switch(format)
-            {
-                case PF_DXT1:
-                case PF_DXT2:
-                case PF_DXT3:
-                case PF_DXT4:
-                case PF_DXT5:
-                case PF_BC4_SNORM:
-                case PF_BC4_UNORM:
-                case PF_BC5_SNORM:
-                case PF_BC5_UNORM:
-                case PF_BC6H_SF16:
-                case PF_BC6H_UF16:
-                case PF_BC7_UNORM:
-                case PF_BC7_UNORM_SRGB:
-                    return ((width&3)==0 && (height&3)==0 && depth==1);
-                default:
-                    return true;
-            }
-        }
-        else
-        {
-            return true;
-        }
-    }
-    //-----------------------------------------------------------------------
     void PixelUtil::getBitDepths(PixelFormat format, int rgba[4])
     {
         const PixelFormatDescription &des = getDescriptionFor(format);
@@ -300,10 +266,7 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     bool PixelUtil::isAccessible(PixelFormat srcformat)
     {
-        if (srcformat == PF_UNKNOWN)
-            return false;
-        unsigned int flags = getFlags(srcformat);
-        return !((flags & PFF_COMPRESSED) || (flags & PFF_DEPTH));
+        return (srcformat != PF_UNKNOWN) && !isCompressed(srcformat);
     }
     //-----------------------------------------------------------------------
     PixelComponentType PixelUtil::getComponentType(PixelFormat fmt)
@@ -336,6 +299,17 @@ namespace Ogre {
                     return pf;
             }
         }
+
+        // allow look-up by alias name
+        if(tmp == "PF_BYTE_RGB")
+            return PF_BYTE_RGB;
+        if(tmp == "PF_BYTE_RGBA")
+            return PF_BYTE_RGBA;
+        if(tmp == "PF_BYTE_BGR")
+            return PF_BYTE_BGR;
+        if(tmp == "PF_BYTE_BGRA")
+            return PF_BYTE_BGRA;
+
         return PF_UNKNOWN;
     }
     //-----------------------------------------------------------------------
@@ -343,7 +317,7 @@ namespace Ogre {
     {
         // Collect format names sorted by length, it's required by BNF compiler
         // that similar tokens need longer ones comes first.
-        typedef multimap<String::size_type, String>::type FormatNameMap;
+        typedef std::multimap<String::size_type, String> FormatNameMap;
         FormatNameMap formatNames;
         for (size_t i = 0; i < PF_COUNT; ++i)
         {
@@ -530,7 +504,7 @@ namespace Ogre {
                 ((float*)dest)[2] = b;
                 ((float*)dest)[3] = a;
                 break;
-            case PF_DEPTH:
+            case PF_DEPTH16:
             case PF_FLOAT16_R:
                 ((uint16*)dest)[0] = Bitwise::floatToHalf(r);
                 break;
@@ -678,7 +652,6 @@ namespace Ogre {
                 *b = ((const float*)src)[2];
                 *a = ((const float*)src)[3];
                 break;
-            case PF_DEPTH:
             case PF_FLOAT16_R:
                 *r = *g = *b = Bitwise::halfToFloat(((const uint16*)src)[0]);
                 *a = 1.0f;
@@ -739,8 +712,7 @@ namespace Ogre {
     void PixelUtil::bulkPixelConversion(const PixelBox &src, const PixelBox &dst)
     {
         assert(src.getWidth() == dst.getWidth() &&
-               src.getHeight() == dst.getHeight() &&
-               src.getDepth() == dst.getDepth());
+               src.getHeight() == dst.getHeight());
 
         // Check for compressed formats, we don't support decompression, compression or recoding
         if(PixelUtil::isCompressed(src.format) || PixelUtil::isCompressed(dst.format))
@@ -749,9 +721,8 @@ namespace Ogre {
             {
                 // we can copy with slice granularity, useful for Tex2DArray handling
                 size_t bytesPerSlice = getMemorySize(src.getWidth(), src.getHeight(), 1, src.format);
-                memcpy(
-                    (uint8*)dst.data + bytesPerSlice * dst.front,
-                    (uint8*)src.data + bytesPerSlice * src.front,
+                memcpy(dst.data + bytesPerSlice * dst.front,
+                    src.data + bytesPerSlice * src.front,
                     bytesPerSlice * src.getDepth());
                 return;
             }
@@ -774,9 +745,9 @@ namespace Ogre {
 
             const size_t srcPixelSize = PixelUtil::getNumElemBytes(src.format);
             const size_t dstPixelSize = PixelUtil::getNumElemBytes(dst.format);
-            uint8 *srcptr = static_cast<uint8*>(src.data)
+            uint8 *srcptr = src.data
                 + (src.left + src.top * src.rowPitch + src.front * src.slicePitch) * srcPixelSize;
-            uint8 *dstptr = static_cast<uint8*>(dst.data)
+            uint8 *dstptr = dst.data
                 + (dst.left + dst.top * dst.rowPitch + dst.front * dst.slicePitch) * dstPixelSize;
 
             // Calculate pitches+skips in bytes
@@ -838,9 +809,9 @@ namespace Ogre {
 
         const size_t srcPixelSize = PixelUtil::getNumElemBytes(src.format);
         const size_t dstPixelSize = PixelUtil::getNumElemBytes(dst.format);
-        uint8 *srcptr = static_cast<uint8*>(src.data)
+        uint8 *srcptr = src.data
             + (src.left + src.top * src.rowPitch + src.front * src.slicePitch) * srcPixelSize;
-        uint8 *dstptr = static_cast<uint8*>(dst.data)
+        uint8 *dstptr = dst.data
             + (dst.left + dst.top * dst.rowPitch + dst.front * dst.slicePitch) * dstPixelSize;
         
         // Old way, not taking into account box dimensions
@@ -890,10 +861,10 @@ namespace Ogre {
         const size_t rowPitchBytes = box.rowPitch * pixelSize;
         const size_t slicePitchBytes = box.slicePitch * pixelSize;
 
-        uint8 *basesrcptr = static_cast<uint8*>(box.data)
+        uint8 *basesrcptr = box.data
             + (box.left + box.top * box.rowPitch + box.front * box.slicePitch) * pixelSize;
         uint8 *basedstptr = basesrcptr + (box.bottom - box.top - 1) * rowPitchBytes;
-        uint8* tmpptr = (uint8*)OGRE_MALLOC_ALIGN(copySize, MEMCATEGORY_GENERAL, false);
+        uint8* tmpptr = (uint8*)OGRE_MALLOC_SIMD(copySize, MEMCATEGORY_GENERAL);
         
         // swap rows
         const size_t halfRowCount = (box.bottom - box.top) >> 1;
@@ -914,7 +885,7 @@ namespace Ogre {
             basedstptr += slicePitchBytes;
         }
         
-        OGRE_FREE_ALIGN(tmpptr, MEMCATEGORY_GENERAL, false);
+        OGRE_FREE_SIMD(tmpptr, MEMCATEGORY_GENERAL);
     }
 
     ColourValue PixelBox::getColourAt(size_t x, size_t y, size_t z) const

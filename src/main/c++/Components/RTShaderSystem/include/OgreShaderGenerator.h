@@ -119,57 +119,31 @@ public:
     /** 
     Set the target shader language.
     @param shaderLanguage The output shader language to use.
-    @param version
     @remarks The default shader language is cg.
     */
-    void setTargetLanguage(const String& shaderLanguage,const float version = 1.0);
+    void setTargetLanguage(const String& shaderLanguage);
 
-    /** 
-    Return if hlsl 4.0 shading language is currently in use.        
-    */
-    bool IsHlsl4() const { return mShaderLanguage == "hlsl" && mShaderLanguageVersion == 4.0f; }
     /** 
     Return the target shader language currently in use.     
     */
     const String& getTargetLanguage() const { return mShaderLanguage; }
 
     /** 
-    Return the target shader language version currently in use.     
+    Set the output shader target profiles.
+    @param type shader type
+    @param shaderProfiles The target profiles for the shader.
     */
-    float getTargetLanguageVersion() const { return mShaderLanguageVersion; }
+    void setShaderProfiles(GpuProgramType type, const String& shaderProfiles);
 
     /** 
-    Set the output vertex shader target profiles.
-    @param vertexShaderProfiles The target profiles for the vertex shader.  
+    Get the output shader target profiles.
     */
-    void setVertexShaderProfiles(const String& vertexShaderProfiles);
+    const String& getShaderProfiles(GpuProgramType type) const;
 
     /** 
-    Get the output vertex shader target profiles.   
+    Get the output shader target profiles as list of strings.
     */
-    const String& getVertexShaderProfiles() const { return mVertexShaderProfiles; }
-
-    /** 
-    Get the output vertex shader target profiles as list of strings.    
-    */
-    const StringVector& getVertexShaderProfilesList() const { return mVertexShaderProfilesList; }
-
-
-    /** 
-    Set the output fragment shader target profiles.
-    @param fragmentShaderProfiles The target profiles for the fragment shader.  
-    */
-    void setFragmentShaderProfiles(const String& fragmentShaderProfiles);
-
-    /** 
-    Get the output fragment shader target profiles. 
-    */
-    const String& getFragmentShaderProfiles() const { return mFragmentShaderProfiles; }
-
-    /** 
-    Get the output fragment shader target profiles as list of strings.
-    */
-    const StringVector& getFragmentShaderProfilesList() const { return mFragmentShaderProfilesList; }
+    const StringVector& getShaderProfilesList(GpuProgramType type);
 
     /** 
     Set the output shader cache path. Generated shader code will be written to this path.
@@ -224,12 +198,6 @@ public:
      @param passIndex The pass index.
      */
     RenderState* getRenderState(const String& schemeName, const String& materialName, const String& groupName, unsigned short passIndex);
-
-#if !OGRE_RESOURCEMANAGER_STRICT
-    /// @overload
-    /// @deprecated use ShaderGenerator::getRenderState(const String& schemeName, const String& materialName, const String& groupName, ...)
-    OGRE_DEPRECATED RenderState* getRenderState(const String& schemeName, const String& materialName, unsigned short passIndex);
-#endif
 
     /** 
     Add sub render state factory. Plugins or 3d party applications may implement sub classes of
@@ -305,31 +273,20 @@ public:
     */
     bool createShaderBasedTechnique(const Material& srcMat, const String& srcTechniqueSchemeName, const String& dstTechniqueSchemeName, bool overProgrammable = false);
 
-#if !OGRE_RESOURCEMANAGER_STRICT
     /// @overload
-    /// @deprecated use ShaderGenerator::createShaderBasedTechnique(srcMat, ...)
-    OGRE_DEPRECATED bool createShaderBasedTechnique(const String& materialName, const String& srcTechniqueSchemeName, const String& dstTechniqueSchemeName, bool overProgrammable = false);
-#endif
-
-    /// @overload
-    /// @deprecated use ShaderGenerator::createShaderBasedTechnique(srcMat, ...)
-    bool createShaderBasedTechnique(const String& materialName, const String& groupName, const String& srcTechniqueSchemeName, const String& dstTechniqueSchemeName, bool overProgrammable = false);
+    bool createShaderBasedTechnique(const Technique* srcTech, const String& dstTechniqueSchemeName, bool overProgrammable = false);
 
     /**
      Remove shader based technique from a given technique.
      Return true upon success. Failure may occur if the given source technique was not previously
      registered successfully using the createShaderBasedTechnique method.
-     @param materialName The source material name.
-     @param groupName The source group name.
-     @param srcTechniqueSchemeName The source technique scheme name.
+     @param srcTech The source technique.
      @param dstTechniqueSchemeName The destination shader based technique scheme name.
      */
-    bool removeShaderBasedTechnique(const String& materialName, const String& groupName, const String& srcTechniqueSchemeName, const String& dstTechniqueSchemeName);
+    bool removeShaderBasedTechnique(const Technique* srcTech, const String& dstTechniqueSchemeName);
 
-#if !OGRE_RESOURCEMANAGER_STRICT
-    /// @overload
-    OGRE_DEPRECATED bool removeShaderBasedTechnique(const String& materialName, const String& srcTechniqueSchemeName, const String& dstTechniqueSchemeName);
-#endif
+    /// @deprecated
+    OGRE_DEPRECATED bool removeShaderBasedTechnique(const String& materialName, const String& groupName, const String& srcTechniqueSchemeName, const String& dstTechniqueSchemeName);
 
     /** 
     Remove all shader based techniques of the given material. 
@@ -337,12 +294,7 @@ public:
     @param materialName The source material name.   
     @param groupName The source group name. 
     */
-    bool
-#if OGRE_RESOURCEMANAGER_STRICT
-    removeAllShaderBasedTechniques(const String& materialName, const String& groupName);
-#else
-    removeAllShaderBasedTechniques(const String& materialName, const String& groupName = ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME);
-#endif
+    bool removeAllShaderBasedTechniques(const String& materialName, const String& groupName OGRE_RESOURCE_GROUP_INIT);
 
     /** 
     Clone all shader based techniques from one material to another.
@@ -389,12 +341,7 @@ public:
     @param materialName The material to invalidate.
     @param groupName The source group name. 
     */
-    void
-#if OGRE_RESOURCEMANAGER_STRICT
-    invalidateMaterial(const String& schemeName, const String& materialName, const String& groupName);
-#else
-    invalidateMaterial(const String& schemeName, const String& materialName, const String& groupName = ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME);
-#endif
+    void invalidateMaterial(const String& schemeName, const String& materialName, const String& groupName OGRE_RESOURCE_GROUP_INIT);
 
     /** 
     Validate specific material scheme. This action will generate shader programs for the technique of the
@@ -403,12 +350,7 @@ public:
     @param materialName The material to validate.
     @param groupName The source group name. 
     */
-    bool
-#if OGRE_RESOURCEMANAGER_STRICT
-    validateMaterial(const String& schemeName, const String& materialName, const String& groupName);
-#else
-    validateMaterial(const String& schemeName, const String& materialName, const String& groupName = ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME);
-#endif
+    bool validateMaterial(const String& schemeName, const String& materialName, const String& groupName OGRE_RESOURCE_GROUP_INIT);
 
 	/**
 	Invalidate specific material scheme. This action will lead to shader regeneration of the technique belongs to the
@@ -417,12 +359,7 @@ public:
 	@param materialName The material to invalidate.
 	@param groupName The source group name.
 	*/
-    void
-#if OGRE_RESOURCEMANAGER_STRICT
-    invalidateMaterialIlluminationPasses(const String& schemeName, const String& materialName, const String& groupName);
-#else
-	invalidateMaterialIlluminationPasses(const String& schemeName, const String& materialName, const String& groupName = ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME);
-#endif
+    void invalidateMaterialIlluminationPasses(const String& schemeName, const String& materialName, const String& groupName OGRE_RESOURCE_GROUP_INIT);
 
 	/**
 	Validate specific material scheme. This action will generate shader programs illumination passes of the technique of the
@@ -431,12 +368,7 @@ public:
 	@param materialName The material to validate.
 	@param groupName The source group name.
 	*/
-	bool
-#if OGRE_RESOURCEMANAGER_STRICT
-    validateMaterialIlluminationPasses(const String& schemeName, const String& materialName, const String& groupName);
-#else
-	validateMaterialIlluminationPasses(const String& schemeName, const String& materialName, const String& groupName = ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME);
-#endif
+	bool validateMaterialIlluminationPasses(const String& schemeName, const String& materialName, const String& groupName OGRE_RESOURCE_GROUP_INIT);
 
     /** 
     Return custom material Serializer of the shader generator.
@@ -451,15 +383,8 @@ public:
     */
     SGMaterialSerializerListener* getMaterialSerializerListener();
 
-
-    /** Return the current number of generated vertex shaders. */
-    size_t getVertexShaderCount() const;
-
-
-    /** Return the current number of generated fragment shaders. */
-    size_t getFragmentShaderCount() const;
-
-
+    /** Return the current number of generated shaders. */
+    size_t getShaderCount(GpuProgramType type) const;
 
     /** Set the vertex shader outputs compaction policy. 
     @see VSOutputCompactPolicy.
@@ -515,26 +440,26 @@ protected:
         }
     };
 
-    typedef vector<SGPass*>::type                   SGPassList;
+    typedef std::vector<SGPass*>                   SGPassList;
     typedef SGPassList::iterator                        SGPassIterator;
     typedef SGPassList::const_iterator              SGPassConstIterator;
 
-    typedef vector<SGTechnique*>::type              SGTechniqueList;
+    typedef std::vector<SGTechnique*>              SGTechniqueList;
     typedef SGTechniqueList::iterator               SGTechniqueIterator;
     typedef SGTechniqueList::const_iterator         SGTechniqueConstIterator;
 
-    typedef map<SGTechnique*, SGTechnique*>::type   SGTechniqueMap;
+    typedef std::map<SGTechnique*, SGTechnique*>   SGTechniqueMap;
     typedef SGTechniqueMap::iterator                    SGTechniqueMapIterator;
     
-    typedef map<MatGroupPair, SGMaterial*, MatGroupPair_less>::type SGMaterialMap;
+    typedef std::map<MatGroupPair, SGMaterial*, MatGroupPair_less> SGMaterialMap;
     typedef SGMaterialMap::iterator                 SGMaterialIterator;
     typedef SGMaterialMap::const_iterator           SGMaterialConstIterator;
 
-    typedef map<String, SGScheme*>::type                SGSchemeMap;
+    typedef std::map<String, SGScheme*>                SGSchemeMap;
     typedef SGSchemeMap::iterator                   SGSchemeIterator;
     typedef SGSchemeMap::const_iterator             SGSchemeConstIterator;
 
-    typedef map<String, ScriptTranslator*>::type        SGScriptTranslatorMap;
+    typedef std::map<uint32, ScriptTranslator*>        SGScriptTranslatorMap;
     typedef SGScriptTranslatorMap::iterator         SGScriptTranslatorIterator;
     typedef SGScriptTranslatorMap::const_iterator   SGScriptTranslatorConstIterator;
 
@@ -607,7 +532,7 @@ protected:
     class _OgreRTSSExport SGTechnique : public RTShaderSystemAlloc
     {
     public:
-        SGTechnique(SGMaterial* parent, Technique* srcTechnique,
+        SGTechnique(SGMaterial* parent, const Technique* srcTechnique,
                     const String& dstTechniqueSchemeName, bool overProgrammable);
         ~SGTechnique();
         
@@ -615,7 +540,7 @@ protected:
         const SGMaterial* getParent() const { return mParent; }
         
         /** Get the source technique. */
-        Technique* getSourceTechnique() { return mSrcTechnique; }
+        const Technique* getSourceTechnique() { return mSrcTechnique; }
 
         /** Get the destination technique. */
         Technique* getDestinationTechnique() { return mDstTechnique; }
@@ -677,7 +602,7 @@ protected:
         // Parent material.     
         SGMaterial* mParent;
         // Source technique.
-        Technique* mSrcTechnique;
+        const Technique* mSrcTechnique;
         // Destination technique.
         Technique* mDstTechnique;
 		// All passes entries, both normal and illumination.
@@ -884,12 +809,6 @@ protected:
         {
             mOwner = owner;
         }
-
-        /// Returns the number of translators being managed
-        virtual size_t getNumTranslators() const
-        {
-            return mOwner->getNumTranslators();
-        }
         
         /// Returns a manager for the given object abstract node, or null if it is not supported
         virtual ScriptTranslator *getTranslator(const AbstractNodePtr& node)
@@ -924,12 +843,12 @@ protected:
     };
 
     //-----------------------------------------------------------------------------
-    typedef map<String, SubRenderStateFactory*>::type       SubRenderStateFactoryMap;
+    typedef std::map<String, SubRenderStateFactory*>       SubRenderStateFactoryMap;
     typedef SubRenderStateFactoryMap::iterator              SubRenderStateFactoryIterator;
     typedef SubRenderStateFactoryMap::const_iterator        SubRenderStateFactoryConstIterator;
 
     //-----------------------------------------------------------------------------
-    typedef map<String, SceneManager*>::type                SceneManagerMap;
+    typedef std::map<String, SceneManager*>                SceneManagerMap;
     typedef SceneManagerMap::iterator                       SceneManagerIterator;
     typedef SceneManagerMap::const_iterator                 SceneManagerConstIterator;
 
@@ -977,24 +896,6 @@ protected:
     @param translator The translator for the specific SubRenderState
     */
     SubRenderState* createSubRenderState(ScriptCompiler* compiler, PropertyAbstractNode* prop, TextureUnitState* texState, SGScriptTranslator* translator);
-
-    /** 
-    Add custom script translator. 
-    Return true upon success.
-    @param key The key name of the given translator.
-    @param translator The translator to associate with the given key.
-    */
-    bool addCustomScriptTranslator(const String& key, ScriptTranslator* translator);
-
-    /** 
-    Remove custom script translator. 
-    Return true upon success.
-    @param key The key name of the translator to remove.    
-    */
-    bool removeCustomScriptTranslator(const String& key);
-
-    /** Return number of script translators. */
-    size_t getNumTranslators() const;
 
     /** Return a matching script translator. */
     ScriptTranslator* getTranslator(const AbstractNodePtr& node);
@@ -1049,14 +950,10 @@ protected:
     SGMaterialSerializerListener* mMaterialSerializerListener;
     // get notified if materials get dropped
     SGResourceGroupListener* mResourceGroupListener;
-    // A map of the registered custom script translators.
-    SGScriptTranslatorMap mScriptTranslatorsMap;
     // The core translator of the RT Shader System.
     SGScriptTranslator mCoreScriptTranslator;
     // The target shader language (currently only cg supported).
     String mShaderLanguage;
-    // The target shader language version.
-    float  mShaderLanguageVersion;
     // The target vertex shader profile. Will be used as argument for program compilation.
     String mVertexShaderProfiles;
     // List of target vertex shader profiles.
@@ -1095,6 +992,8 @@ protected:
     bool mCreateShaderOverProgrammablePass;
     // A flag to indicate finalizing
     bool mIsFinalizing;
+
+    uint32 ID_RT_SHADER_SYSTEM;
 private:
     friend class SGPass;
     friend class FFPRenderStateBuilder;

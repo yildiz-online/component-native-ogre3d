@@ -35,10 +35,23 @@ THE SOFTWARE.
 namespace Ogre
 {
     namespace GLSLES {
-    //-----------------------------------------------------------------------------
-    String logObjectInfo(const String& msg, const GLuint obj)
+    String logObjectInfo(const String& msg, GLuint obj)
     {
-        String logMessage = msg;
+        String logMessage = getObjectInfo(obj);
+
+        if (logMessage.empty())
+            return msg;
+
+        logMessage = msg + "\n" + logMessage;
+
+        LogManager::getSingleton().logMessage(LML_CRITICAL, logMessage);
+
+        return logMessage;
+    }
+
+    String getObjectInfo(const GLuint obj)
+    {
+        String logMessage;
 
         if (obj > 0)
         {
@@ -52,13 +65,12 @@ namespace Ogre
             {
                 OGRE_CHECK_GL_ERROR(glGetProgramiv(obj, GL_INFO_LOG_LENGTH, &infologLength));
             }
-#if OGRE_PLATFORM != OGRE_PLATFORM_NACL
+
             else if(Root::getSingleton().getRenderSystem()->getCapabilities()->hasCapability(RSC_SEPARATE_SHADER_OBJECTS))
             {
                 if(glIsProgramPipelineEXT(obj))
                     OGRE_CHECK_GL_ERROR(glGetProgramPipelineivEXT(obj, GL_INFO_LOG_LENGTH, &infologLength));
             }
-#endif
 
             if (infologLength > 1)
             {
@@ -75,30 +87,20 @@ namespace Ogre
                 {
                     OGRE_CHECK_GL_ERROR(glGetProgramInfoLog(obj, infologLength, &charsWritten, infoLog));
                 }
-#if OGRE_PLATFORM != OGRE_PLATFORM_NACL
                 else if(Root::getSingleton().getRenderSystem()->getCapabilities()->hasCapability(RSC_SEPARATE_SHADER_OBJECTS))
                 {
                     if(glIsProgramPipelineEXT(obj))
                         OGRE_CHECK_GL_ERROR(glGetProgramPipelineInfoLogEXT(obj, infologLength, &charsWritten, infoLog));
                 }
-#endif
 
                 if (strlen(infoLog) > 0)
                 {
-                    logMessage += "\n" + String(infoLog);
+                    logMessage = String(infoLog);
                 }
 
                 delete [] infoLog;
 
-                if (logMessage.size() > 0)
-                {
-                    // remove ends of line in the end - so there will be no empty lines in the log.
-                    while( logMessage[logMessage.size() - 1] == '\n' )
-                    {
-                        logMessage.erase(logMessage.size() - 1, 1);
-                    }
-                    LogManager::getSingleton().logMessage(logMessage);
-                }
+                StringUtil::trim(logMessage, false, true);
             }
         }
 

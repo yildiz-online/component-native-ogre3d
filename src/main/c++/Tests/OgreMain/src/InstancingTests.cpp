@@ -26,9 +26,9 @@ THE SOFTWARE.
 -----------------------------------------------------------------------------
 */
 
-#include <Ogre.h>
-#include <OgreInstancedEntity.h>
-#include <OgreInstanceBatchShader.h>
+#include "Ogre.h"
+#include "OgreInstancedEntity.h"
+#include "OgreInstanceBatchShader.h"
 #include "RootWithoutRenderSystemFixture.h"
 
 using namespace Ogre;
@@ -36,7 +36,7 @@ using namespace Ogre;
 typedef RootWithoutRenderSystemFixture Instancing;
 
 TEST_F(Instancing, Bounds) {
-    SceneManager* sceneMgr = SceneManagerEnumerator::getSingleton().createSceneManager(ST_GENERIC);
+    SceneManager* sceneMgr = mRoot->createSceneManager();
     Entity* entity = sceneMgr->createEntity("robot.mesh");
 
     MeshPtr mesh = entity->getMesh();

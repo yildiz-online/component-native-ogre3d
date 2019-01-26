@@ -25,7 +25,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 -----------------------------------------------------------------------------
 */
-#include "OgreTerrainMaterialGeneratorA.h"
+#include "OgreTerrainMaterialShaderHelpers.h"
 #include "OgreTerrain.h"
 #include "OgreHighLevelGpuProgramManager.h"
 #include "OgreShadowCameraSetupPSSM.h"
@@ -36,23 +36,35 @@ namespace Ogre
     //---------------------------------------------------------------------
     //---------------------------------------------------------------------
     HighLevelGpuProgramPtr
-    TerrainMaterialGeneratorA::SM2Profile::ShaderHelperCg::createVertexProgram(
+    ShaderHelperCg::createVertexProgram(
         const SM2Profile* prof, const Terrain* terrain, TechniqueType tt)
     {
         HighLevelGpuProgramManager& mgr = HighLevelGpuProgramManager::getSingleton();
         String progName = getVertexProgramName(prof, terrain, tt);
+
+        String lang = mgr.isLanguageSupported("hlsl") ? "hlsl" : "cg";
+
         HighLevelGpuProgramPtr ret = mgr.getByName(progName, ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
         if (!ret)
         {
-            ret = mgr.createProgram(progName, ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME, 
-                "cg", GPT_VERTEX_PROGRAM);
+            ret = mgr.createProgram(progName, ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,
+                                    lang, GPT_VERTEX_PROGRAM);
         }
         else
         {
             ret->unload();
         }
 
-        ret->setParameter("profiles", "vs_4_0 vs_3_0 vs_2_0 arbvp1");
+        if(lang == "hlsl")
+        {
+            ret->setParameter("enable_backwards_compatibility", "true");
+            ret->setParameter("target", "vs_4_0 vs_3_0 vs_2_0");
+        }
+        else
+        {
+            ret->setParameter("profiles", "vs_4_0 vs_3_0 vs_2_0 arbvp1");
+        }
+
         ret->setParameter("entry_point", "main_vp");
 
         return ret;
@@ -60,34 +72,45 @@ namespace Ogre
     }
     //---------------------------------------------------------------------
     HighLevelGpuProgramPtr
-        TerrainMaterialGeneratorA::SM2Profile::ShaderHelperCg::createFragmentProgram(
+        ShaderHelperCg::createFragmentProgram(
             const SM2Profile* prof, const Terrain* terrain, TechniqueType tt)
     {
         HighLevelGpuProgramManager& mgr = HighLevelGpuProgramManager::getSingleton();
         String progName = getFragmentProgramName(prof, terrain, tt);
 
+        String lang = mgr.isLanguageSupported("hlsl") ? "hlsl" : "cg";
+
         HighLevelGpuProgramPtr ret = mgr.getByName(progName, ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
         if (!ret)
         {
-            ret = mgr.createProgram(progName, ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME, 
-                "cg", GPT_FRAGMENT_PROGRAM);
+            ret = mgr.createProgram(progName, ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,
+                                    lang, GPT_FRAGMENT_PROGRAM);
         }
         else
         {
             ret->unload();
         }
         
-        if(prof->isLayerNormalMappingEnabled() || prof->isLayerParallaxMappingEnabled())
-            ret->setParameter("profiles", "ps_4_0 ps_3_0 ps_2_x fp40 arbfp1");
+
+        if(lang == "hlsl")
+        {
+            ret->setParameter("enable_backwards_compatibility", "true");
+            ret->setParameter("target", "ps_4_0 ps_3_0 ps_2_x");
+        }
         else
-            ret->setParameter("profiles", "ps_4_0 ps_3_0 ps_2_0 fp30 arbfp1");
+        {
+            if(prof->isLayerNormalMappingEnabled() || prof->isLayerParallaxMappingEnabled())
+                ret->setParameter("profiles", "ps_4_0 ps_3_0 ps_2_x fp40 arbfp1");
+            else
+                ret->setParameter("profiles", "ps_4_0 ps_3_0 ps_2_0 fp30 arbfp1");
+        }
         ret->setParameter("entry_point", "main_fp");
 
         return ret;
 
     }
     //---------------------------------------------------------------------
-    void TerrainMaterialGeneratorA::SM2Profile::ShaderHelperCg::generateVpHeader(
+    void ShaderHelperCg::generateVpHeader(
         const SM2Profile* prof, const Terrain* terrain, TechniqueType tt, StringStream& outStream)
     {
         outStream << 
@@ -173,8 +196,7 @@ namespace Ogre
         if (texCoordSet > 8)
         {
             OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, 
-                "Requested options require too many texture coordinate sets! Try reducing the number of layers.",
-                __FUNCTION__);
+                "Requested options require too many texture coordinate sets! Try reducing the number of layers.");
         }
 
         outStream <<
@@ -249,7 +271,7 @@ namespace Ogre
 
     }
     //---------------------------------------------------------------------
-    void TerrainMaterialGeneratorA::SM2Profile::ShaderHelperCg::generateFpHeader(
+    void ShaderHelperCg::generateFpHeader(
         const SM2Profile* prof, const Terrain* terrain, TechniqueType tt, StringStream& outStream)
     {
 
@@ -364,8 +386,7 @@ namespace Ogre
         if (currentSamplerIdx > 16)
         {
             OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, 
-                "Requested options require too many texture samplers! Try reducing the number of layers.",
-                __FUNCTION__);
+                "Requested options require too many texture samplers! Try reducing the number of layers.");
         }
 
         outStream << 
@@ -458,13 +479,13 @@ namespace Ogre
 
     }
     //---------------------------------------------------------------------
-    void TerrainMaterialGeneratorA::SM2Profile::ShaderHelperCg::generateVpLayer(
+    void ShaderHelperCg::generateVpLayer(
         const SM2Profile* prof, const Terrain* terrain, TechniqueType tt, uint layer, StringStream& outStream)
     {
         // nothing to do
     }
     //---------------------------------------------------------------------
-    void TerrainMaterialGeneratorA::SM2Profile::ShaderHelperCg::generateFpLayer(
+    void ShaderHelperCg::generateFpLayer(
         const SM2Profile* prof, const Terrain* terrain, TechniqueType tt, uint layer, StringStream& outStream)
     {
         uint uvIdx = layer / 2;
@@ -533,7 +554,7 @@ namespace Ogre
         */
     }
     //---------------------------------------------------------------------
-    void TerrainMaterialGeneratorA::SM2Profile::ShaderHelperCg::generateVpFooter(
+    void ShaderHelperCg::generateVpFooter(
         const SM2Profile* prof, const Terrain* terrain, TechniqueType tt, StringStream& outStream)
     {
 
@@ -565,7 +586,7 @@ namespace Ogre
 
     }
     //---------------------------------------------------------------------
-    void TerrainMaterialGeneratorA::SM2Profile::ShaderHelperCg::generateFpFooter(
+    void ShaderHelperCg::generateFpFooter(
         const SM2Profile* prof, const Terrain* terrain, TechniqueType tt, StringStream& outStream)
     {
 
@@ -639,7 +660,7 @@ namespace Ogre
 
     }
     //---------------------------------------------------------------------
-    void TerrainMaterialGeneratorA::SM2Profile::ShaderHelperCg::generateFpDynamicShadowsHelpers(
+    void ShaderHelperCg::generateFpDynamicShadowsHelpers(
         const SM2Profile* prof, const Terrain* terrain, TechniqueType tt, StringStream& outStream)
     {
         // TODO make filtering configurable
@@ -760,7 +781,7 @@ namespace Ogre
 
     }
     //---------------------------------------------------------------------
-    uint TerrainMaterialGeneratorA::SM2Profile::ShaderHelperCg::generateVpDynamicShadowsParams(
+    uint ShaderHelperCg::generateVpDynamicShadowsParams(
         uint texCoord, const SM2Profile* prof, const Terrain* terrain, TechniqueType tt, StringStream& outStream)
     {
         // out semantics & params
@@ -785,7 +806,7 @@ namespace Ogre
 
     }
     //---------------------------------------------------------------------
-    void TerrainMaterialGeneratorA::SM2Profile::ShaderHelperCg::generateVpDynamicShadows(
+    void ShaderHelperCg::generateVpDynamicShadows(
         const SM2Profile* prof, const Terrain* terrain, TechniqueType tt, StringStream& outStream)
     {
         uint numTextures = 1;
@@ -818,7 +839,7 @@ namespace Ogre
 
     }
     //---------------------------------------------------------------------
-    void TerrainMaterialGeneratorA::SM2Profile::ShaderHelperCg::generateFpDynamicShadowsParams(
+    void ShaderHelperCg::generateFpDynamicShadowsParams(
         uint* texCoord, uint* sampler, const SM2Profile* prof, const Terrain* terrain, TechniqueType tt, StringStream& outStream)
     {
         if (tt == HIGH_LOD)
@@ -850,7 +871,7 @@ namespace Ogre
 
     }
     //---------------------------------------------------------------------
-    void TerrainMaterialGeneratorA::SM2Profile::ShaderHelperCg::generateFpDynamicShadows(
+    void ShaderHelperCg::generateFpDynamicShadows(
         const SM2Profile* prof, const Terrain* terrain, TechniqueType tt, StringStream& outStream)
     {
         if (prof->getReceiveDynamicShadowsPSSM())

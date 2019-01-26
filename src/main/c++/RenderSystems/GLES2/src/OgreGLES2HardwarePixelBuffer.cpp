@@ -41,7 +41,7 @@ THE SOFTWARE.
 #include "OgreGLSLESLinkProgram.h"
 #include "OgreGLSLESProgramPipeline.h"
 #include "OgreBitwise.h"
-#include "OgreGLES2Support.h"
+#include "OgreGLNativeSupport.h"
 #include "OgreGLES2HardwareBuffer.h"
 #include "OgreGLES2Texture.h"
 
@@ -154,10 +154,10 @@ namespace Ogre {
         mSlicePitch = mHeight*mWidth;
         mSizeInBytes = PixelUtil::getMemorySize(mWidth, mHeight, mDepth, mFormat);
 
-#if 0 //OGRE_DEBUG_MODE
+#if OGRE_DEBUG_MODE
         // Log a message
         std::stringstream str;
-        str << "GLES2HardwarePixelBuffer constructed for texture " << baseName
+        str << "GLES2HardwarePixelBuffer constructed for texture " << parent->getName()
             << " id " << mTextureID << " face " << mFace << " level " << mLevel << ":"
             << " width=" << mWidth << " height="<< mHeight << " depth=" << mDepth
             << " format=" << PixelUtil::getFormatName(mFormat);
@@ -283,7 +283,7 @@ namespace Ogre {
                 case GL_TEXTURE_2D_ARRAY:
                     if(!hasGLES30)
                         break;
-                    /* no break */
+                    OGRE_FALLTHROUGH;
                 case GL_TEXTURE_3D_OES:
                     OGRE_CHECK_GL_ERROR(glCompressedTexSubImage3DOES(mTarget, mLevel,
                                               dest.left, dest.top, dest.front,
@@ -331,7 +331,7 @@ namespace Ogre {
                 case GL_TEXTURE_2D_ARRAY:
                     if(!hasGLES30)
                         break;
-                    /* no break */
+                    OGRE_FALLTHROUGH;
                 case GL_TEXTURE_3D_OES:
                     OGRE_CHECK_GL_ERROR(glTexSubImage3DOES(
                                     mTarget, mLevel,
@@ -408,7 +408,7 @@ namespace Ogre {
 
         PixelUtil::bulkPixelConversion(tempBox, data);
 
-        delete[] (uint8*) tempBox.data;
+        delete[] tempBox.data;
         tempBox.data = 0;
 
         // Restore defaults
@@ -468,8 +468,8 @@ namespace Ogre {
         // Store reference to FBO manager
         GLES2FBOManager *fboMan = static_cast<GLES2FBOManager *>(GLRTTManager::getSingletonPtr());
 
-        RenderSystem* rsys = Root::getSingleton().getRenderSystem();
-        rsys->_disableTextureUnitsFrom(0);
+        GLES2RenderSystem* rs = getGLES2RenderSystem();
+        rs->_disableTextureUnitsFrom(0);
         glActiveTexture(GL_TEXTURE0);
 
         // Disable alpha, depth and scissor testing, disable blending,
@@ -480,7 +480,6 @@ namespace Ogre {
         glDisable(GL_CULL_FACE);
 
         // Set up source texture
-        GLES2RenderSystem* rs = getGLES2RenderSystem();
         rs->_getStateCacheManager()->bindGLTexture(src->mTarget, src->mTextureID);
 
         // Set filtering modes depending on the dimensions and source
@@ -558,6 +557,10 @@ namespace Ogre {
             OGRE_CHECK_GL_ERROR(glViewport(dstBox.left, dstBox.top, dstBox.getWidth(), dstBox.getHeight()));
         }
 
+        // Select scratch VAO #0
+        if(rs->getCapabilities()->hasCapability(RSC_VAO))
+            rs->_getStateCacheManager()->bindGLVertexArray(0);
+
         // Process each destination slice
         for(size_t slice = dstBox.front; slice < dstBox.back; ++slice)
         {
@@ -580,7 +583,7 @@ namespace Ogre {
             w = (w+0.5f) / (float)src->mDepth;
 
             // Finally we're ready to rumble
-            getGLES2RenderSystem()->_getStateCacheManager()->bindGLTexture(src->mTarget, src->mTextureID);
+            rs->_getStateCacheManager()->bindGLTexture(src->mTarget, src->mTextureID);
             OGRE_CHECK_GL_ERROR(glEnable(src->mTarget));
 
             GLfloat squareVertices[] = {
@@ -650,19 +653,12 @@ namespace Ogre {
 
 #if OGRE_NO_GLES3_SUPPORT == 0
         OGRE_CHECK_GL_ERROR(glTexParameteri(src->mTarget, GL_TEXTURE_BASE_LEVEL, 0));
-
-        // Detach texture from temporary framebuffer
-        if(mFormat == PF_DEPTH)
-        {
-            OGRE_CHECK_GL_ERROR(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
-                                                          GL_RENDERBUFFER, 0));
-        }
-        else
 #endif
-        {
-            OGRE_CHECK_GL_ERROR(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-                                                          GL_RENDERBUFFER, 0));
-        }
+        // Detach texture from temporary framebuffer
+        OGRE_CHECK_GL_ERROR(glFramebufferRenderbuffer(
+            GL_FRAMEBUFFER, PixelUtil::isDepth(mFormat) ? GL_DEPTH_ATTACHMENT : GL_COLOR_ATTACHMENT0,
+            GL_RENDERBUFFER, 0));
+
         // Restore old framebuffer
         OGRE_CHECK_GL_ERROR(glBindFramebuffer(GL_FRAMEBUFFER, oldfb));
         if(tempTex)
@@ -717,6 +713,8 @@ namespace Ogre {
     GLES2RenderBuffer::GLES2RenderBuffer(GLenum format, uint32 width, uint32 height, GLsizei numSamples):
     GLES2HardwarePixelBuffer(width, height, 1, GLES2PixelUtil::getClosestOGREFormat(format), HBU_WRITE_ONLY)
     {
+        GLES2RenderSystem* rs = getGLES2RenderSystem();
+
         mGLInternalFormat = format;
         mNumSamples = numSamples;
         
@@ -726,7 +724,7 @@ namespace Ogre {
         // Bind it to FBO
         OGRE_CHECK_GL_ERROR(glBindRenderbuffer(GL_RENDERBUFFER, mRenderbufferID));
 
-        if(Root::getSingleton().getRenderSystem()->getCapabilities()->hasCapability(RSC_DEBUG))
+        if(rs->getCapabilities()->hasCapability(RSC_DEBUG))
         {
             OGRE_CHECK_GL_ERROR(glLabelObjectEXT(GL_RENDERBUFFER, mRenderbufferID, 0, ("RB " + StringConverter::toString(mRenderbufferID) + " MSAA: " + StringConverter::toString(mNumSamples)).c_str()));
         }
@@ -734,7 +732,6 @@ namespace Ogre {
         // Allocate storage for depth buffer
         if (mNumSamples > 0)
         {
-            GLES2RenderSystem* rs = getGLES2RenderSystem();
             if(rs->hasMinGLVersion(3, 0) || rs->checkExtension("GL_APPLE_framebuffer_multisample"))
             {
                 OGRE_CHECK_GL_ERROR(glRenderbufferStorageMultisampleAPPLE(GL_RENDERBUFFER,

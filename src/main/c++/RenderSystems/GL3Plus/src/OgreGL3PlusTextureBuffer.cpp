@@ -210,7 +210,7 @@ namespace Ogre {
 
             GLenum type = GL3PlusPixelUtil::getGLOriginDataType(data.format);
 
-            if (data.format == PF_DEPTH)
+            if (PixelUtil::isDepth(data.format))
             {
                 switch (GL3PlusPixelUtil::getGLInternalFormat(data.format))
                 {
@@ -309,10 +309,6 @@ namespace Ogre {
         }
         else
         {
-            if (data.getWidth() != data.rowPitch)
-                OGRE_CHECK_GL_ERROR(glPixelStorei(GL_PACK_ROW_LENGTH, data.rowPitch));
-            if (data.getHeight()*data.getWidth() != data.slicePitch)
-                OGRE_CHECK_GL_ERROR(glPixelStorei(GL_PACK_IMAGE_HEIGHT, (data.slicePitch/data.getWidth())));
             if ((data.getWidth()*PixelUtil::getNumElemBytes(data.format)) & 3) {
                 // Standard alignment of 4 is not right
                 OGRE_CHECK_GL_ERROR(glPixelStorei(GL_PACK_ALIGNMENT, 1));
@@ -324,29 +320,23 @@ namespace Ogre {
                                               0));
 
             // Restore defaults
-            OGRE_CHECK_GL_ERROR(glPixelStorei(GL_PACK_ROW_LENGTH, 0));
-            OGRE_CHECK_GL_ERROR(glPixelStorei(GL_PACK_IMAGE_HEIGHT, 0));
             OGRE_CHECK_GL_ERROR(glPixelStorei(GL_PACK_ALIGNMENT, 4));
         }
 
-        GLint offsetInBytes = 0;
-        uint32 width = mWidth;
-        uint32 height = mHeight;
-        uint32 depth = mDepth;
-        for(GLint i = 0; i < mLevel; i++)
-        {
-            offsetInBytes += PixelUtil::getMemorySize(width, height, depth, data.format);
-
-            if (width > 1)
-                width = width / 2;
-            if (height > 1)
-                height = height / 2;
-            if (depth > 1)
-                depth = depth / 2;
-        }
-
         // Copy to destination buffer
-        buffer.readData(offsetInBytes, mSizeInBytes, data.getTopLeftFrontPixelPtr());
+        if(data.isConsecutive())
+            buffer.readData(0, mSizeInBytes, data.getTopLeftFrontPixelPtr());
+        else
+        {
+            size_t srcOffset = 0, elemSizeInBytes = PixelUtil::getNumElemBytes(data.format);
+            for(size_t z = 0; z < mDepth; ++z)
+                for(size_t y = 0; y < mHeight; ++y)
+                {
+                    buffer.readData(srcOffset, mWidth * elemSizeInBytes,
+                        (uint8*)data.getTopLeftFrontPixelPtr() + (z * data.slicePitch + y * data.rowPitch) * elemSizeInBytes);
+                    srcOffset += mWidth * elemSizeInBytes;
+                }
+        }
     }
 
 
@@ -432,8 +422,11 @@ namespace Ogre {
         OGRE_CHECK_GL_ERROR(glGetIntegerv(GL_FRAMEBUFFER_BINDING, &oldfb));
 
         // Set up temporary FBO
-        mRenderSystem->_getStateCacheManager()->bindGLFrameBuffer( GL_DRAW_FRAMEBUFFER, fboMan->getTemporaryFBO(0) );
-        mRenderSystem->_getStateCacheManager()->bindGLFrameBuffer( GL_READ_FRAMEBUFFER, fboMan->getTemporaryFBO(1) );
+        GLuint tempFBO[2] = { 0, 0 };
+        OGRE_CHECK_GL_ERROR(glGenFramebuffers(1, &tempFBO[0]));
+        OGRE_CHECK_GL_ERROR(glGenFramebuffers(1, &tempFBO[1]));
+        mRenderSystem->_getStateCacheManager()->bindGLFrameBuffer( GL_DRAW_FRAMEBUFFER, tempFBO[0] );
+        mRenderSystem->_getStateCacheManager()->bindGLFrameBuffer( GL_READ_FRAMEBUFFER, tempFBO[1] );
 
         TexturePtr tempTex;
         if (!fboMan->checkFormat(mFormat))
@@ -459,16 +452,15 @@ namespace Ogre {
             mRenderSystem->_getStateCacheManager()->setViewport(dstBox.left, dstBox.top, dstBox.getWidth(), dstBox.getHeight());
         }
 
+        bool isDepth = PixelUtil::isDepth(mFormat);
+
         // Process each destination slice
         for(uint32 slice = dstBox.front; slice < dstBox.back; ++slice)
         {
             if (!tempTex)
             {
                 // Bind directly
-                if (mFormat == PF_DEPTH)
-                    bindToFramebuffer(GL_DEPTH_ATTACHMENT, slice);
-                else
-                    bindToFramebuffer(GL_COLOR_ATTACHMENT0, slice);
+                bindToFramebuffer(isDepth ? GL_DEPTH_ATTACHMENT : GL_COLOR_ATTACHMENT0, slice);
             }
 
             OGRE_CHECK_GL_ERROR(glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER));
@@ -476,7 +468,7 @@ namespace Ogre {
             GLbitfield mask = GL_ZERO;
 
             // Bind the appropriate source texture to the read framebuffer
-            if (mFormat == PF_DEPTH)
+            if (isDepth)
             {
                 src->_bindToFramebuffer(GL_DEPTH_ATTACHMENT, slice, GL_READ_FRAMEBUFFER);
 
@@ -522,16 +514,8 @@ namespace Ogre {
         // Reset source texture to sane state
         mRenderSystem->_getStateCacheManager()->bindGLTexture( src->mTarget, src->mTextureID );
 
-        if (mFormat == PF_DEPTH)
-        {
-            OGRE_CHECK_GL_ERROR(glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
-                                                          GL_RENDERBUFFER, 0));
-        }
-        else
-        {
-            OGRE_CHECK_GL_ERROR(glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-                                                          GL_RENDERBUFFER, 0));
-        }
+        OGRE_CHECK_GL_ERROR(glFramebufferRenderbuffer(
+            GL_DRAW_FRAMEBUFFER, isDepth ? GL_DEPTH_ATTACHMENT : GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, 0));
 
         // Reset read buffer/framebuffer
         OGRE_CHECK_GL_ERROR(glReadBuffer(GL_NONE));
@@ -539,6 +523,10 @@ namespace Ogre {
 
         // Restore old framebuffer
         mRenderSystem->_getStateCacheManager()->bindGLFrameBuffer( GL_DRAW_FRAMEBUFFER, oldfb);
+        
+        mRenderSystem->_getStateCacheManager()->deleteGLFrameBuffer(GL_FRAMEBUFFER, tempFBO[0]);
+        mRenderSystem->_getStateCacheManager()->deleteGLFrameBuffer(GL_FRAMEBUFFER, tempFBO[1]);
+        
         if(tempTex)
             TextureManager::getSingleton().remove(tempTex);
     }

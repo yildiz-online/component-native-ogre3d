@@ -26,10 +26,7 @@ THE SOFTWARE.
 -----------------------------------------------------------------------------
 */
 #include "OgreStableHeaders.h"
-#include "OgreHardwareBufferManager.h"
 #include "OgreVertexIndexData.h"
-#include "OgreLogManager.h"
-
 
 namespace Ogre {
 
@@ -44,15 +41,12 @@ namespace Ogre {
         assert( msSingleton );  return ( *msSingleton );  
     }
     //---------------------------------------------------------------------
-    HardwareBufferManager::HardwareBufferManager(HardwareBufferManagerBase* imp)
-        : HardwareBufferManagerBase(), mImpl(imp)
+    HardwareBufferManager::HardwareBufferManager()
     {
-
     }
     //---------------------------------------------------------------------
     HardwareBufferManager::~HardwareBufferManager()
     {
-        // mImpl must be deleted by the creator
     }
     //---------------------------------------------------------------------
     //---------------------------------------------------------------------
@@ -376,7 +370,7 @@ namespace Ogre {
         std::pair<_Iter, _Iter> range = mFreeTempVertexBufferMap.equal_range(sourceBuffer);
         if (range.first != range.second)
         {
-            list<HardwareVertexBufferSharedPtr>::type holdForDelayDestroy;
+            std::list<HardwareVertexBufferSharedPtr> holdForDelayDestroy;
             for (_Iter it = range.first; it != range.second; ++it)
             {
                 if (it->second.use_count() <= 1)

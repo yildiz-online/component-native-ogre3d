@@ -27,9 +27,6 @@ THE SOFTWARE.
 */
 #include "OgreStableHeaders.h"
 
-#include "OgreStringVector.h"
-#include "OgreArchiveManager.h"
-#include "OgreArchive.h"
 #include "OgreRenderSystemCapabilitiesManager.h"
 #include "OgreRenderSystemCapabilitiesSerializer.h"
 
@@ -86,7 +83,7 @@ namespace Ogre {
         return mCapabilitiesMap[name];
     }
 
-    const map<String, RenderSystemCapabilities*>::type &RenderSystemCapabilitiesManager::getCapabilities() const
+    const std::map<String, RenderSystemCapabilities*> &RenderSystemCapabilitiesManager::getCapabilities() const
     {
         return mCapabilitiesMap;
     }

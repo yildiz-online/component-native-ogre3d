@@ -54,6 +54,7 @@ class _OgreSampleClassExport Sample_Terrain : public SdkSample
         , mHeightUpdateCountDown(0)
         , mTerrainPos(1000,0,5000)
         , mTerrainsImported(false)
+        , mKeyPressed(0)
 
     {
         mInfo["Title"] = "Terrain";
@@ -79,7 +80,9 @@ class _OgreSampleClassExport Sample_Terrain : public SdkSample
     StringVector getRequiredPlugins()
     {
         StringVector names;
-        if (!GpuProgramManager::getSingleton().isSyntaxSupported("glsles") && !GpuProgramManager::getSingleton().isSyntaxSupported("glsl150"))
+        if (!GpuProgramManager::getSingleton().isSyntaxSupported("glsles") &&
+            !GpuProgramManager::getSingleton().isSyntaxSupported("glsl") &&
+            !GpuProgramManager::getSingleton().isSyntaxSupported("hlsl"))
             names.push_back("Cg Program Manager");
         return names;
     }
@@ -88,11 +91,9 @@ class _OgreSampleClassExport Sample_Terrain : public SdkSample
     {
         Vector3 tsPos;
         terrain->getTerrainPosition(centrepos, &tsPos);
-#if OGRE_PLATFORM != OGRE_PLATFORM_APPLE_IOS && OGRE_BITES_HAVE_SDL
-        const uint8* state = SDL_GetKeyboardState(NULL);
-
-        if (state[SDL_SCANCODE_EQUALS] || state[SDL_SCANCODE_KP_PLUS] ||
-            state[SDL_SCANCODE_KP_MINUS] || state[SDL_SCANCODE_MINUS])
+#if OGRE_PLATFORM != OGRE_PLATFORM_APPLE_IOS
+        if (mKeyPressed == '+' || mKeyPressed == '-' || mKeyPressed == SDLK_KP_PLUS ||
+            mKeyPressed == SDLK_KP_MINUS)
         {
             switch(mMode)
             {
@@ -121,7 +122,7 @@ class _OgreSampleClassExport Sample_Terrain : public SdkSample
 
                             float addedHeight = weight * 250.0 * timeElapsed;
                             float newheight;
-                            if (state[SDL_SCANCODE_EQUALS] || state[SDL_SCANCODE_KP_PLUS])
+                            if (mKeyPressed == '+'  || mKeyPressed == SDLK_KP_PLUS)
                                 newheight = terrain->getHeightAtPoint(x, y) + addedHeight;
                             else
                                 newheight = terrain->getHeightAtPoint(x, y) - addedHeight;
@@ -160,7 +161,7 @@ class _OgreSampleClassExport Sample_Terrain : public SdkSample
                             float paint = weight * timeElapsed;
                             size_t imgY = imgSize - y;
                             float val;
-                            if (state[SDL_SCANCODE_EQUALS] || state[SDL_SCANCODE_KP_PLUS])
+                            if (mKeyPressed == '+'  || mKeyPressed == SDLK_KP_PLUS)
                                 val = layer->getBlendValue(x, imgY) + paint;
                             else
                                 val = layer->getBlendValue(x, imgY) - paint;
@@ -283,15 +284,22 @@ class _OgreSampleClassExport Sample_Terrain : public SdkSample
         mTerrainGroup->saveAllTerrains(onlyIfModified);
     }
 
+    bool keyReleased(const KeyboardEvent& evt)
+    {
+        mKeyPressed = 0;
+        return SdkSample::keyReleased(evt);
+    }
+
     bool keyPressed (const KeyboardEvent &e)
     {
 #if OGRE_PLATFORM != OGRE_PLATFORM_APPLE_IOS
-        SDL_Keymod mod = SDL_GetModState();
+        mKeyPressed = e.keysym.sym;
+
         switch (e.keysym.sym)
         {
         case 's':
             // CTRL-S to save
-            if (mod & KMOD_CTRL)
+            if (e.keysym.mod & KMOD_CTRL)
             {
                 saveTerrains(true);
             }
@@ -411,6 +419,8 @@ class _OgreSampleClassExport Sample_Terrain : public SdkSample
 
     typedef std::list<Entity*> EntityList;
     EntityList mHouseList;
+
+    Keycode mKeyPressed;
 
     void defineTerrain(long x, long y, bool flat = false)
     {
@@ -713,9 +723,6 @@ class _OgreSampleClassExport Sample_Terrain : public SdkSample
         bool blankTerrain = false;
         //blankTerrain = true;
 
-        if (!Ogre::ResourceGroupManager::getSingleton().resourceGroupExists("Terrain"))
-            Ogre::ResourceGroupManager::getSingleton().createResourceGroup("Terrain");
-
         mTerrainGlobals = OGRE_NEW TerrainGlobalOptions();
 
         // Bugfix for D3D11 Render System because of pixel format incompatibility when using
@@ -755,7 +762,6 @@ class _OgreSampleClassExport Sample_Terrain : public SdkSample
         mTerrainGroup = OGRE_NEW TerrainGroup(mSceneMgr, Terrain::ALIGN_X_Z, TERRAIN_SIZE, TERRAIN_WORLD_SIZE);
         mTerrainGroup->setFilenameConvention(TERRAIN_FILE_PREFIX, TERRAIN_FILE_SUFFIX);
         mTerrainGroup->setOrigin(mTerrainPos);
-        mTerrainGroup->setResourceGroup("Terrain");
         
         configureTerrainDefaults(l);
 #ifdef PAGING
@@ -844,8 +850,6 @@ class _OgreSampleClassExport Sample_Terrain : public SdkSample
             OGRE_DELETE mTerrainGlobals;
             mTerrainGlobals = 0;
         }
-
-        ResourceGroupManager::getSingleton().destroyResourceGroup("Terrain");
 
         mHouseList.clear();
 

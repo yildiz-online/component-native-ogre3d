@@ -47,10 +47,10 @@ struct GLUniformReference
     /// The constant definition it relates to
     const GpuConstantDefinition* mConstantDef;
 };
-typedef vector<GLUniformReference>::type GLUniformReferenceList;
+typedef std::vector<GLUniformReference> GLUniformReferenceList;
 typedef GLUniformReferenceList::iterator GLUniformReferenceIterator;
 
-typedef vector<HardwareUniformBufferSharedPtr>::type GLUniformBufferList;
+typedef std::vector<HardwareUniformBufferSharedPtr> GLUniformBufferList;
 typedef GLUniformBufferList::iterator GLUniformBufferIterator;
 
 class GLSLProgramCommon
@@ -126,8 +126,6 @@ protected:
     uint mGLProgramHandle;
     /// Flag indicating that the program or pipeline object has been successfully linked
     int mLinked;
-    /// Flag indicating that the program or pipeline object has tried to link and failed
-    bool mTriedToLinkAndFailed;
     /// Flag indicating skeletal animation is being performed
     bool mSkeletalAnimation;
     /// A value to define the case we didn't look for the attributes since the contractor

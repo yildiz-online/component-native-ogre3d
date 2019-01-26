@@ -30,7 +30,6 @@ THE SOFTWARE.
 #import "OgreRoot.h"
 #import "OgreLogManager.h"
 #import "OgreStringConverter.h"
-#import "OgreWindowEventUtilities.h"
 
 #import "OgreGLRenderSystemCommon.h"
 #import "OgreGLNativeSupport.h"
@@ -71,7 +70,7 @@ namespace Ogre {
 
 
     CocoaWindow::CocoaWindow() : mWindow(nil), mView(nil), mGLContext(nil), mGLPixelFormat(nil), mWindowOriginPt(NSZeroPoint),
-        mWindowDelegate(NULL), mActive(false), mClosed(false), mHidden(false), mVSync(true), mHasResized(false), mIsExternal(false), mWindowTitle(""),
+        mActive(false), mClosed(false), mHidden(false), mVSync(true), mHasResized(false), mIsExternal(false), mWindowTitle(""),
         mUseOgreGLView(true), mContentScalingFactor(1.0), mStyleMask(NSResizableWindowMask|NSTitledWindowMask)
     {
         // Set vsync by default to save battery and reduce tearing
@@ -92,12 +91,6 @@ namespace Ogre {
         {
             [mWindow release];
             mWindow = nil;
-        }
-
-        if(mWindowDelegate)
-        {
-            [mWindowDelegate release];
-            mWindowDelegate = nil;
         }
     }
 	
@@ -287,7 +280,7 @@ namespace Ogre {
 
         if(miscParams && opt != miscParams->end())
         {
-            NSOpenGLContext *openGLContext = (NSOpenGLContext*)StringConverter::parseUnsignedLong(opt->second);
+            NSOpenGLContext *openGLContext = (NSOpenGLContext*)StringConverter::parseSizeT(opt->second);
             mGLContext = openGLContext;
         }
         else
@@ -320,7 +313,7 @@ namespace Ogre {
         }
         else
         {
-            NSObject* externalHandle = (NSObject*)StringConverter::parseUnsignedLong(opt->second);
+            NSObject* externalHandle = (NSObject*)StringConverter::parseSizeT(opt->second);
             if([externalHandle isKindOfClass:[NSWindow class]])
             {
                 mView = [(NSWindow*)externalHandle contentView];
@@ -350,16 +343,10 @@ namespace Ogre {
 
             mWindow = [mView window];
             mIsExternal = true;
-            
-            // Add our window to the window event listener class
-            WindowEventUtilities::_addRenderWindow(this);
         }
 
         // Create register the context with the rendersystem and associate it with this window
         mContext = OGRE_NEW CocoaContext(mGLContext, mGLPixelFormat);
-
-		// Create the window delegate instance to handle window resizing and other window events
-        mWindowDelegate = [[CocoaWindowDelegate alloc] initWithNSWindow:mWindow ogreWindow:this];
 
         if(mContentScalingFactor > 1.0)
             [mView setWantsBestResolutionOpenGLSurface:YES];
@@ -399,16 +386,18 @@ namespace Ogre {
     unsigned int CocoaWindow::getWidth() const
     {
         // keep mWidth in sync with reality
-        assert(mView == nil || int(mWidth) == _getPixelFromPoint([mView frame].size.width));
-        
+        OgreAssertDbg(mView == nil || int(mWidth) == _getPixelFromPoint([mView frame].size.width),
+                      "Window dimension mismatch. Did you call windowMovedOrResized?");
+
         return mWidth;
     }
 
     unsigned int CocoaWindow::getHeight() const
     {
         // keep mHeight in sync with reality
-        assert(mView == nil || int(mHeight) == _getPixelFromPoint([mView frame].size.height));
-        
+        OgreAssertDbg(mView == nil || int(mHeight) == _getPixelFromPoint([mView frame].size.height),
+                      "Window dimension mismatch. Did you call windowMovedOrResized?");
+
         return mHeight;
     }
 
@@ -418,12 +407,6 @@ namespace Ogre {
         {
             // Unregister and destroy OGRE GLContext
             OGRE_DELETE mContext;
-            
-            if(!mIsExternal)
-            {
-                // Remove the window from the Window listener
-                WindowEventUtilities::_removeRenderWindow(this);
-            }
 
             if(mGLContext)
             {
@@ -524,12 +507,16 @@ namespace Ogre {
         if(mIsFullScreen)
             return;
 
-		NSRect frame = [mWindow frame];
+        NSRect frame = mIsExternal ? [[mView window] frame] : [mWindow frame];
         NSRect screenFrame = [[NSScreen mainScreen] visibleFrame];
 		frame.origin.x = leftPt;
 		frame.origin.y = screenFrame.size.height - frame.size.height - topPt;
         mWindowOriginPt = frame.origin;
-		[mWindow setFrame:frame display:YES];
+
+        if(mIsExternal)
+            [[mView window] setFrame:frame display:YES];
+        else
+            [mWindow setFrame:frame display:YES];
 
         // Keep our size up to date
         NSRect b = [mView bounds];
@@ -600,7 +587,7 @@ namespace Ogre {
             ([mView respondsToSelector:@selector(wantsBestResolutionOpenGLSurface)] && [(id)mView wantsBestResolutionOpenGLSurface]) ?
             (mView.window.screen ?: [NSScreen mainScreen]).backingScaleFactor : 1.0f;
 
-        NSRect winFrame = [mWindow frame];
+        NSRect winFrame = mIsExternal ? [[mView window] frame] : [mWindow frame];
         NSRect viewFrame = [mView frame];
         NSRect screenFrame = [[NSScreen mainScreen] visibleFrame];
         CGFloat leftPt = winFrame.origin.x;
@@ -693,9 +680,6 @@ namespace Ogre {
 
         // Show window
         setHidden(mHidden);
-
-        // Add our window to the window event listener class
-        WindowEventUtilities::_addRenderWindow(this);
     }
 
     void CocoaWindow::createWindowFromExternal(NSView *viewRef)

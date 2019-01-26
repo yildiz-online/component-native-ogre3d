@@ -31,13 +31,6 @@ THE SOFTWARE.
 
 #include "OgreStableHeaders.h"
 #include "OgreBillboardChain.h"
-
-#include "OgreHardwareBufferManager.h"
-#include "OgreNode.h"
-#include "OgreCamera.h"
-#include "OgreRoot.h"
-#include "OgreMaterialManager.h"
-#include "OgreLogManager.h"
 #include "OgreViewport.h"
 
 #include <limits>
@@ -81,8 +74,8 @@ namespace Ogre {
         mFaceCamera(true),
         mNormalBase(Vector3::UNIT_X)
     {
-        mVertexData = OGRE_NEW VertexData();
-        mIndexData = OGRE_NEW IndexData();
+        mVertexData.reset(new VertexData());
+        mIndexData.reset(new IndexData());
 
         mOtherTexCoordRange[0] = 0.0f;
         mOtherTexCoordRange[1] = 1.0f;
@@ -95,12 +88,9 @@ namespace Ogre {
         mMaterial = MaterialManager::getSingleton().getDefaultMaterial(false);
         mMaterial->load();
     }
-    //-----------------------------------------------------------------------
-    BillboardChain::~BillboardChain()
-    {
-        OGRE_DELETE mVertexData;
-        OGRE_DELETE mIndexData;
-    }
+
+    BillboardChain::~BillboardChain() = default; // ensure unique_ptr destructors are in cpp
+
     //-----------------------------------------------------------------------
     void BillboardChain::setupChainContainers(void)
     {
@@ -709,13 +699,7 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     Real BillboardChain::getSquaredViewDepth(const Camera* cam) const
     {
-        Vector3 min, max, mid, dist;
-        min = mAABB.getMinimum();
-        max = mAABB.getMaximum();
-        mid = ((max - min) * 0.5) + min;
-        dist = cam->getDerivedPosition() - mid;
-
-        return dist.squaredLength();
+        return (cam->getDerivedPosition() - mAABB.getCenter()).squaredLength();
     }
     //-----------------------------------------------------------------------
     Real BillboardChain::getBoundingRadius(void) const
@@ -773,11 +757,11 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     void BillboardChain::getRenderOperation(RenderOperation& op)
     {
-        op.indexData = mIndexData;
+        op.indexData = mIndexData.get();
         op.operationType = RenderOperation::OT_TRIANGLE_LIST;
         op.srcRenderable = this;
         op.useIndexes = true;
-        op.vertexData = mVertexData;
+        op.vertexData = mVertexData.get();
     }
     //-----------------------------------------------------------------------
     bool BillboardChain::preRender(SceneManager* sm, RenderSystem* rsys)
@@ -831,12 +815,12 @@ namespace Ogre {
             NameValuePairList::const_iterator ni = params->find("maxElements");
             if (ni != params->end())
             {
-                maxElements = StringConverter::parseUnsignedLong(ni->second);
+                maxElements = StringConverter::parseSizeT(ni->second);
             }
             ni = params->find("numberOfChains");
             if (ni != params->end())
             {
-                numberOfChains = StringConverter::parseUnsignedLong(ni->second);
+                numberOfChains = StringConverter::parseSizeT(ni->second);
             }
             ni = params->find("useTextureCoords");
             if (ni != params->end())

@@ -45,9 +45,8 @@ namespace Ogre {
         uint32 free: 1;
     };
     #define SCRATCH_POOL_SIZE 1 * 1024 * 1024
-    #define SCRATCH_ALIGNMENT 32
     //---------------------------------------------------------------------
-    GLHardwareBufferManagerBase::GLHardwareBufferManagerBase() 
+    GLHardwareBufferManager::GLHardwareBufferManager()
         : mScratchBufferPool(NULL), mMapBufferThreshold(OGRE_GL_DEFAULT_MAP_BUFFER_THRESHOLD)
     {
         mRenderSystem = static_cast<GLRenderSystem*>(Root::getSingleton().getRenderSystem());
@@ -55,27 +54,27 @@ namespace Ogre {
         // Init scratch pool
         // TODO make it a configurable size?
         // 32-bit aligned buffer
-        mScratchBufferPool = static_cast<char*>(OGRE_MALLOC_ALIGN(SCRATCH_POOL_SIZE, MEMCATEGORY_GEOMETRY, SCRATCH_ALIGNMENT));
+        mScratchBufferPool = static_cast<char*>(OGRE_MALLOC_SIMD(SCRATCH_POOL_SIZE, MEMCATEGORY_GEOMETRY));
         GLScratchBufferAlloc* ptrAlloc = (GLScratchBufferAlloc*)mScratchBufferPool;
         ptrAlloc->size = SCRATCH_POOL_SIZE - sizeof(GLScratchBufferAlloc);
         ptrAlloc->free = 1;
         mMapBufferThreshold = 0;
     }
     //-----------------------------------------------------------------------
-    GLHardwareBufferManagerBase::~GLHardwareBufferManagerBase()
+    GLHardwareBufferManager::~GLHardwareBufferManager()
     {
         destroyAllDeclarations();
         destroyAllBindings();
 
-        OGRE_FREE_ALIGN(mScratchBufferPool, MEMCATEGORY_GEOMETRY, SCRATCH_ALIGNMENT);
+        OGRE_FREE_SIMD(mScratchBufferPool, MEMCATEGORY_GEOMETRY);
     }
     //-----------------------------------------------------------------------
-    GLStateCacheManager * GLHardwareBufferManagerBase::getStateCacheManager()
+    GLStateCacheManager * GLHardwareBufferManager::getStateCacheManager()
     {
         return mRenderSystem->_getStateCacheManager();
     }
     //-----------------------------------------------------------------------
-    HardwareVertexBufferSharedPtr GLHardwareBufferManagerBase::createVertexBuffer(
+    HardwareVertexBufferSharedPtr GLHardwareBufferManager::createVertexBuffer(
         size_t vertexSize, size_t numVerts, HardwareBuffer::Usage usage, bool useShadowBuffer)
     {
         GLHardwareVertexBuffer* buf = 
@@ -88,7 +87,7 @@ namespace Ogre {
     }
     //-----------------------------------------------------------------------
     HardwareIndexBufferSharedPtr 
-    GLHardwareBufferManagerBase::createIndexBuffer(
+    GLHardwareBufferManager::createIndexBuffer(
         HardwareIndexBuffer::IndexType itype, size_t numIndexes, 
         HardwareBuffer::Usage usage, bool useShadowBuffer)
     {
@@ -102,37 +101,37 @@ namespace Ogre {
     }
     //---------------------------------------------------------------------
     RenderToVertexBufferSharedPtr 
-        GLHardwareBufferManagerBase::createRenderToVertexBuffer()
+        GLHardwareBufferManager::createRenderToVertexBuffer()
     {
         return RenderToVertexBufferSharedPtr(new GLRenderToVertexBuffer);
     }
     //---------------------------------------------------------------------
     HardwareUniformBufferSharedPtr 
-        GLHardwareBufferManagerBase::createUniformBuffer(size_t sizeBytes, HardwareBuffer::Usage usage,bool useShadowBuffer, const String& name)
+        GLHardwareBufferManager::createUniformBuffer(size_t sizeBytes, HardwareBuffer::Usage usage,bool useShadowBuffer, const String& name)
     {
         OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, 
                     "Uniform buffers not supported in OpenGL RenderSystem.",
-                    "GLHardwareBufferManagerBase::createUniformBuffer");
+                    "GLHardwareBufferManager::createUniformBuffer");
     }
     HardwareCounterBufferSharedPtr
-        GLHardwareBufferManagerBase::createCounterBuffer(size_t sizeBytes,
+        GLHardwareBufferManager::createCounterBuffer(size_t sizeBytes,
                                                          HardwareBuffer::Usage usage,
                                                          bool useShadowBuffer, const String& name)
     {
         OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR,
                     "Counter buffers not supported in OpenGL RenderSystem.",
-                    "GLHardwareBufferManagerBase::createCounterBuffer");
+                    "GLHardwareBufferManager::createCounterBuffer");
     }
 
     //---------------------------------------------------------------------
-    GLenum GLHardwareBufferManagerBase::getGLUsage(unsigned int usage)
+    GLenum GLHardwareBufferManager::getGLUsage(unsigned int usage)
     {
         return  (usage & HardwareBuffer::HBU_DISCARDABLE) ? GL_STREAM_DRAW_ARB :
                 (usage & HardwareBuffer::HBU_STATIC) ? GL_STATIC_DRAW_ARB :
                 GL_DYNAMIC_DRAW_ARB;
     }
     //---------------------------------------------------------------------
-    GLenum GLHardwareBufferManagerBase::getGLType(unsigned int type)
+    GLenum GLHardwareBufferManager::getGLType(unsigned int type)
     {
         switch(type)
         {
@@ -166,7 +165,7 @@ namespace Ogre {
     }
     //---------------------------------------------------------------------
     //---------------------------------------------------------------------
-    void* GLHardwareBufferManagerBase::allocateScratch(uint32 size)
+    void* GLHardwareBufferManager::allocateScratch(uint32 size)
     {
         // simple forward link search based on alloc sizes
         // not that fast but the list should never get that long since not many
@@ -219,7 +218,7 @@ namespace Ogre {
 
     }
     //---------------------------------------------------------------------
-    void GLHardwareBufferManagerBase::deallocateScratch(void* ptr)
+    void GLHardwareBufferManager::deallocateScratch(void* ptr)
     {
             OGRE_LOCK_MUTEX(mScratchMutex);
 
@@ -274,12 +273,12 @@ namespace Ogre {
 
     }
     //---------------------------------------------------------------------
-    size_t GLHardwareBufferManagerBase::getGLMapBufferThreshold() const
+    size_t GLHardwareBufferManager::getGLMapBufferThreshold() const
     {
         return mMapBufferThreshold;
     }
     //---------------------------------------------------------------------
-    void GLHardwareBufferManagerBase::setGLMapBufferThreshold( const size_t value )
+    void GLHardwareBufferManager::setGLMapBufferThreshold( const size_t value )
     {
         mMapBufferThreshold = value;
     }

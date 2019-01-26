@@ -32,16 +32,14 @@ THE SOFTWARE.
 //  being aware of the 3D API. However there are a few
 //  simple functions which can have a base implementation
 
-#include "OgreRenderSystem.h"
-
-#include "OgreException.h"
 #include "OgreRenderTarget.h"
 #include "OgreDepthBuffer.h"
 #include "OgreIteratorWrappers.h"
-#include "OgreLogManager.h"
-#include "OgreTextureManager.h"
-#include "OgreMaterialManager.h"
 #include "OgreHardwareOcclusionQuery.h"
+
+#ifdef OGRE_BUILD_COMPONENT_RTSHADERSYSTEM
+#include "OgreRTShaderConfig.h"
+#endif
 
 namespace Ogre {
 
@@ -57,7 +55,6 @@ namespace Ogre {
         // This means CULL clockwise vertices, i.e. front of poly is counter-clockwise
         // This makes it the same as OpenGL and other right-handed systems
         , mCullingMode(CULL_CLOCKWISE)
-        , mWBuffer(false)
         , mBatchCount(0)
         , mFaceCount(0)
         , mVertexCount(0)
@@ -71,7 +68,6 @@ namespace Ogre {
         , mDerivedDepthBiasSlopeScale(0.0f)
         , mGlobalInstanceVertexBufferVertexDeclaration(NULL)
         , mGlobalNumberOfInstances(1)
-        , mEnableFixedPipeline(true)
         , mVertexProgramBound(false)
         , mGeometryProgramBound(false)
         , mFragmentProgramBound(false)
@@ -315,18 +311,14 @@ namespace Ogre {
     {
         // This method is only ever called to set a texture unit to valid details
         // The method _disableTextureUnit is called to turn a unit off
+        TexturePtr tex = tl._getTexturePtr();
+        if(!tex || tl.isTextureLoadFailing())
+            tex = mTextureManager->_getWarningTexture();
 
-        const TexturePtr& tex = tl._getTexturePtr();
-        bool isValidBinding = false;
-        
-        if (mCurrentCapabilities->hasCapability(RSC_COMPLETE_TEXTURE_BINDING))
-            _setBindingType(tl.getBindingType());
-
-        // Vertex texture binding?
+        // Vertex texture binding (D3D9 only)
         if (mCurrentCapabilities->hasCapability(RSC_VERTEX_TEXTURE_FETCH) &&
             !mCurrentCapabilities->getVertexTextureUnitsShared())
         {
-            isValidBinding = true;
             if (tl.getBindingType() == TextureUnitState::BT_VERTEX)
             {
                 // Bind vertex texture
@@ -342,84 +334,7 @@ namespace Ogre {
                 _setTexture(texUnit, true, tex);
             }
         }
-
-        if (mCurrentCapabilities->hasCapability(RSC_GEOMETRY_PROGRAM))
-        {
-            isValidBinding = true;
-            if (tl.getBindingType() == TextureUnitState::BT_GEOMETRY)
-            {
-                // Bind vertex texture
-                _setGeometryTexture(texUnit, tex);
-                // bind nothing to fragment unit (hardware isn't shared but fragment
-                // unit can't be using the same index
-                _setTexture(texUnit, true, sNullTexPtr);
-            }
-            else
-            {
-                // vice versa
-                _setGeometryTexture(texUnit, sNullTexPtr);
-                _setTexture(texUnit, true, tex);
-            }
-        }
-
-        if (mCurrentCapabilities->hasCapability(RSC_COMPUTE_PROGRAM))
-        {
-            isValidBinding = true;
-            if (tl.getBindingType() == TextureUnitState::BT_COMPUTE)
-            {
-                // Bind vertex texture
-                _setComputeTexture(texUnit, tex);
-                // bind nothing to fragment unit (hardware isn't shared but fragment
-                // unit can't be using the same index
-                _setTexture(texUnit, true, sNullTexPtr);
-            }
-            else
-            {
-                // vice versa
-                _setComputeTexture(texUnit, sNullTexPtr);
-                _setTexture(texUnit, true, tex);
-            }
-        }
-
-        if (mCurrentCapabilities->hasCapability(RSC_TESSELLATION_DOMAIN_PROGRAM))
-        {
-            isValidBinding = true;
-            if (tl.getBindingType() == TextureUnitState::BT_TESSELLATION_DOMAIN)
-            {
-                // Bind vertex texture
-                _setTesselationDomainTexture(texUnit, tex);
-                // bind nothing to fragment unit (hardware isn't shared but fragment
-                // unit can't be using the same index
-                _setTexture(texUnit, true, sNullTexPtr);
-            }
-            else
-            {
-                // vice versa
-                _setTesselationDomainTexture(texUnit, sNullTexPtr);
-                _setTexture(texUnit, true, tex);
-            }
-        }
-
-        if (mCurrentCapabilities->hasCapability(RSC_TESSELLATION_HULL_PROGRAM))
-        {
-            isValidBinding = true;
-            if (tl.getBindingType() == TextureUnitState::BT_TESSELLATION_HULL)
-            {
-                // Bind vertex texture
-                _setTesselationHullTexture(texUnit, tex);
-                // bind nothing to fragment unit (hardware isn't shared but fragment
-                // unit can't be using the same index
-                _setTexture(texUnit, true, sNullTexPtr);
-            }
-            else
-            {
-                // vice versa
-                _setTesselationHullTexture(texUnit, sNullTexPtr);
-                _setTexture(texUnit, true, tex);
-            }
-        }
-
-        if (!isValidBinding)
+        else
         {
             // Shared vertex / fragment textures or no vertex texture support
             // Bind texture (may be blank)
@@ -429,39 +344,12 @@ namespace Ogre {
         // Set texture coordinate set
         _setTextureCoordSet(texUnit, tl.getTextureCoordSet());
 
-        //Set texture layer compare state and function 
-        _setTextureUnitCompareEnabled(texUnit,tl.getTextureCompareEnabled());
-        _setTextureUnitCompareFunction(texUnit,tl.getTextureCompareFunction());
-
-
-        // Set texture layer filtering
-        _setTextureUnitFiltering(texUnit, 
-            tl.getTextureFiltering(FT_MIN), 
-            tl.getTextureFiltering(FT_MAG), 
-            tl.getTextureFiltering(FT_MIP));
-
-        // Set texture layer filtering
-        _setTextureLayerAnisotropy(texUnit, tl.getTextureAnisotropy());
-
-        // Set mipmap biasing
-        _setTextureMipmapBias(texUnit, tl.getTextureMipmapBias());
+        _setSampler(texUnit, *tl.getSampler());
 
         // Set blend modes
         // Note, colour before alpha is important
         _setTextureBlendMode(texUnit, tl.getColourBlendMode());
         _setTextureBlendMode(texUnit, tl.getAlphaBlendMode());
-
-        // Texture addressing mode
-        const TextureUnitState::UVWAddressingMode& uvw = tl.getTextureAddressingMode();
-        _setTextureAddressingMode(texUnit, uvw);
-
-        // Set texture border colour only if required
-        if (uvw.u == TextureUnitState::TAM_BORDER ||
-            uvw.v == TextureUnitState::TAM_BORDER ||
-            uvw.w == TextureUnitState::TAM_BORDER)
-        {
-            _setTextureBorderColour(texUnit, tl.getTextureBorderColour());
-        }
 
         // Set texture effects
         TextureUnitState::EffectMap::iterator effi;
@@ -518,21 +406,6 @@ namespace Ogre {
 
     }
     //-----------------------------------------------------------------------
-    void RenderSystem::_setTexture(size_t unit, bool enabled, 
-        const String &texname)
-    {
-        TexturePtr t = TextureManager::getSingleton().getByName(
-            texname, ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME);
-        _setTexture(unit, enabled, t);
-    }
-    //-----------------------------------------------------------------------
-    void RenderSystem::_setBindingType(TextureUnitState::BindingType bindingType)
-    {
-        OGRE_EXCEPT(Exception::ERR_NOT_IMPLEMENTED, 
-            "This rendersystem does not support binding texture to other shaders then fragment", 
-            "RenderSystem::_setBindingType");
-    }
-    //-----------------------------------------------------------------------
     void RenderSystem::_setVertexTexture(size_t unit, const TexturePtr& tex)
     {
         OGRE_EXCEPT(Exception::ERR_NOT_IMPLEMENTED, 
@@ -540,42 +413,6 @@ namespace Ogre {
             "you should use the regular texture samplers which are shared between "
             "the vertex and fragment units.", 
             "RenderSystem::_setVertexTexture");
-    }
-    //-----------------------------------------------------------------------
-    void RenderSystem::_setGeometryTexture(size_t unit, const TexturePtr& tex)
-    {
-        OGRE_EXCEPT(Exception::ERR_NOT_IMPLEMENTED, 
-            "This rendersystem does not support separate geometry texture samplers, "
-            "you should use the regular texture samplers which are shared between "
-            "the vertex and fragment units.", 
-            "RenderSystem::_setGeometryTexture");
-    }
-    //-----------------------------------------------------------------------
-    void RenderSystem::_setComputeTexture(size_t unit, const TexturePtr& tex)
-    {
-        OGRE_EXCEPT(Exception::ERR_NOT_IMPLEMENTED, 
-            "This rendersystem does not support separate compute texture samplers, "
-            "you should use the regular texture samplers which are shared between "
-            "the vertex and fragment units.", 
-            "RenderSystem::_setComputeTexture");
-    }
-    //-----------------------------------------------------------------------
-    void RenderSystem::_setTesselationHullTexture(size_t unit, const TexturePtr& tex)
-    {
-        OGRE_EXCEPT(Exception::ERR_NOT_IMPLEMENTED, 
-            "This rendersystem does not support separate tesselation hull texture samplers, "
-            "you should use the regular texture samplers which are shared between "
-            "the vertex and fragment units.", 
-            "RenderSystem::_setTesselationHullTexture");
-    }
-    //-----------------------------------------------------------------------
-    void RenderSystem::_setTesselationDomainTexture(size_t unit, const TexturePtr& tex)
-    {
-        OGRE_EXCEPT(Exception::ERR_NOT_IMPLEMENTED, 
-            "This rendersystem does not support separate tesselation domain texture samplers, "
-            "you should use the regular texture samplers which are shared between "
-            "the vertex and fragment units.", 
-            "RenderSystem::_setTesselationDomainTexture");
     }
     //-----------------------------------------------------------------------
     void RenderSystem::_disableTextureUnit(size_t texUnit)
@@ -633,16 +470,6 @@ namespace Ogre {
         return mCullingMode;
     }
     //-----------------------------------------------------------------------
-    bool RenderSystem::getFixedPipelineEnabled(void) const
-    {
-        return mEnableFixedPipeline;
-    }
-    //-----------------------------------------------------------------------
-    void RenderSystem::setFixedPipelineEnabled(bool enabled)
-    {
-        mEnableFixedPipeline = enabled;
-    }
-    //-----------------------------------------------------------------------
     void RenderSystem::setDepthBufferFor( RenderTarget *renderTarget )
     {
         uint16 poolId = renderTarget->getDepthBufferPool();
@@ -679,12 +506,13 @@ namespace Ogre {
     }
     bool RenderSystem::getWBufferEnabled(void) const
     {
-        return mWBuffer;
+        return mCurrentCapabilities->hasCapability(RSC_WBUFFER);
     }
     //-----------------------------------------------------------------------
     void RenderSystem::setWBufferEnabled(bool enabled)
     {
-        mWBuffer = enabled;
+        enabled ? mCurrentCapabilities->setCapability(RSC_WBUFFER)
+                : mCurrentCapabilities->unsetCapability(RSC_WBUFFER);
     }
     //-----------------------------------------------------------------------
     void RenderSystem::shutdown(void)
@@ -699,15 +527,23 @@ namespace Ogre {
 
         _cleanupDepthBuffers();
 
-        // Remove all the render targets.
-        // (destroy primary target last since others may depend on it)
+        // Remove all the render targets. Destroy primary target last since others may depend on it.
+        // Keep mRenderTargets valid all the time, so that render targets could receive
+        // appropriate notifications, for example FBO based about GL context destruction.
         RenderTarget* primary = 0;
-        for (RenderTargetMap::iterator it = mRenderTargets.begin(); it != mRenderTargets.end(); ++it)
+        for (RenderTargetMap::iterator it = mRenderTargets.begin(); it != mRenderTargets.end(); /* note - no increment */)
         {
-            if (!primary && it->second->isPrimary())
-                primary = it->second;
+            RenderTarget* current = it->second;
+            if (!primary && current->isPrimary())
+            {
+                ++it;
+                primary = current;
+            }
             else
-                OGRE_DELETE it->second;
+            {
+                it = mRenderTargets.erase(it);
+                OGRE_DELETE current;
+            }
         }
         OGRE_DELETE primary;
         mRenderTargets.clear();
@@ -742,15 +578,6 @@ namespace Ogre {
 
     }
     //-----------------------------------------------------------------------
-    void RenderSystem::_setWorldMatrices(const Matrix4* m, unsigned short count)
-    {
-        // Do nothing with these matrices here, it never used for now,
-        // derived class should take care with them if required.
-
-        // Set hardware matrix to nothing
-        _setWorldMatrix(Matrix4::IDENTITY);
-    }
-    //-----------------------------------------------------------------------
     void RenderSystem::_render(const RenderOperation& op)
     {
         // Update stats
@@ -774,45 +601,17 @@ namespace Ogre {
         case RenderOperation::OT_TRIANGLE_LIST:
             mFaceCount += (val / 3);
             break;
+        case RenderOperation::OT_TRIANGLE_LIST_ADJ:
+            mFaceCount += (val / 6);
+            break;
+        case RenderOperation::OT_TRIANGLE_STRIP_ADJ:
+            mFaceCount += (val / 2 - 2);
+            break;
         case RenderOperation::OT_TRIANGLE_STRIP:
         case RenderOperation::OT_TRIANGLE_FAN:
             mFaceCount += (val - 2);
             break;
-        case RenderOperation::OT_POINT_LIST:
-        case RenderOperation::OT_LINE_LIST:
-        case RenderOperation::OT_LINE_STRIP:
-        case RenderOperation::OT_PATCH_1_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_2_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_3_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_4_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_5_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_6_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_7_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_8_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_9_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_10_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_11_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_12_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_13_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_14_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_15_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_16_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_17_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_18_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_19_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_20_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_21_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_22_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_23_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_24_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_25_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_26_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_27_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_28_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_29_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_30_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_31_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_32_CONTROL_POINT:
+        default:
             break;
         }
 
@@ -826,13 +625,6 @@ namespace Ogre {
             setClipPlanesImpl(mClipPlanes);
             mClipPlanesDirty = false;
         }
-    }
-    void RenderSystem::_renderUsingReadBackAsTexture(unsigned int secondPass,Ogre::String variableName,unsigned int StartSlot)
-    {
-        OGRE_EXCEPT(Exception::ERR_NOT_IMPLEMENTED, 
-            "This rendersystem does not support reading back the inactive depth/stencil \
-            buffer as a texture. Only DirectX 11 Render System supports it.",
-            "RenderSystem::_renderUsingReadBackAsTexture"); 
     }
     //-----------------------------------------------------------------------
     void RenderSystem::setInvertVertexWinding(bool invert)
@@ -849,11 +641,6 @@ namespace Ogre {
     {
         mClipPlanes.push_back(p);
         mClipPlanesDirty = true;
-    }
-    //---------------------------------------------------------------------
-    void RenderSystem::addClipPlane (Real A, Real B, Real C, Real D)
-    {
-        addClipPlane(Plane(A, B, C, D));
     }
     //---------------------------------------------------------------------
     void RenderSystem::setClipPlanes(const PlaneList& clipPlanes)
@@ -1091,7 +878,7 @@ namespace Ogre {
     //---------------------------------------------------------------------
     void RenderSystem::setGlobalInstanceVertexBuffer( const HardwareVertexBufferSharedPtr &val )
     {
-        if ( val && !val->getIsInstanceData() )
+        if ( val && !val->isInstanceData() )
         {
             OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, 
                         "A none instance data vertex buffer was set to be the global instance vertex buffer.",
@@ -1123,6 +910,45 @@ namespace Ogre {
     void RenderSystem::getCustomAttribute(const String& name, void* pData)
     {
         OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, "Attribute not found.", "RenderSystem::getCustomAttribute");
+    }
+
+    void RenderSystem::initConfigOptions()
+    {
+        // FS setting possibilities
+        ConfigOption optFullScreen;
+        optFullScreen.name = "Full Screen";
+        optFullScreen.possibleValues.push_back( "No" );
+        optFullScreen.possibleValues.push_back( "Yes" );
+        optFullScreen.currentValue = optFullScreen.possibleValues[0];
+        optFullScreen.immutable = false;
+        mOptions[optFullScreen.name] = optFullScreen;
+
+        ConfigOption optVSync;
+        optVSync.name = "VSync";
+        optVSync.immutable = false;
+        optVSync.possibleValues.push_back("No");
+        optVSync.possibleValues.push_back("Yes");
+        optVSync.currentValue = optVSync.possibleValues[1];
+        mOptions[optVSync.name] = optVSync;
+
+        ConfigOption optSRGB;
+        optSRGB.name = "sRGB Gamma Conversion";
+        optSRGB.immutable = false;
+        optSRGB.possibleValues.push_back("No");
+        optSRGB.possibleValues.push_back("Yes");
+        optSRGB.currentValue = optSRGB.possibleValues[0];
+        mOptions[optSRGB.name] = optSRGB;
+
+#if OGRE_NO_QUAD_BUFFER_STEREO == 0
+        ConfigOption optStereoMode;
+        optStereoMode.name = "Stereo Mode";
+        optStereoMode.possibleValues.push_back(StringConverter::toString(SMT_NONE));
+        optStereoMode.possibleValues.push_back(StringConverter::toString(SMT_FRAME_SEQUENTIAL));
+        optStereoMode.currentValue = optStereoMode.possibleValues[0];
+        optStereoMode.immutable = false;
+
+        mOptions[optStereoMode.name] = optStereoMode;
+#endif
     }
 }
 

@@ -95,13 +95,13 @@ namespace Ogre {
         friend class MeshSerializerImpl_v1_1;
 
     public:
-        typedef vector<Real>::type LodValueList;
-        typedef vector<MeshLodUsage>::type MeshLodUsageList;
+        typedef std::vector<Real> LodValueList;
+        typedef std::vector<MeshLodUsage> MeshLodUsageList;
         /// Multimap of vertex bone assignments (orders by vertex index).
-        typedef multimap<size_t, VertexBoneAssignment>::type VertexBoneAssignmentList;
+        typedef std::multimap<size_t, VertexBoneAssignment> VertexBoneAssignmentList;
         typedef MapIterator<VertexBoneAssignmentList> BoneAssignmentIterator;
-        typedef vector<SubMesh*>::type SubMeshList;
-        typedef vector<unsigned short>::type IndexMap;
+        typedef std::vector<SubMesh*> SubMeshList;
+        typedef std::vector<unsigned short> IndexMap;
 
     protected:
         /** A list of submeshes which make up this mesh.
@@ -121,7 +121,7 @@ namespace Ogre {
         /** A hashmap used to store optional SubMesh names.
             Translates a name into SubMesh index.
         */
-        typedef OGRE_HashMap<String, ushort> SubMeshNameMap ;
+        typedef std::unordered_map<String, ushort> SubMeshNameMap ;
 
         
     protected:
@@ -178,7 +178,7 @@ namespace Ogre {
         bool mAutoBuildEdgeLists;
 
         /// Storage of morph animations, lookup by name
-        typedef map<String, Animation*>::type AnimationList;
+        typedef std::map<String, Animation*> AnimationList;
         AnimationList mAnimationsList;
         /// The vertex animation type associated with the shared vertex data
         mutable VertexAnimationType mSharedVertexDataAnimationType;
@@ -789,8 +789,8 @@ namespace Ogre {
         @param indexMap
             The index map used to translate blend index to bone index.
         */
-        static void prepareMatricesForVertexBlend(const Matrix4** blendMatrices,
-            const Matrix4* boneMatrices, const IndexMap& indexMap);
+        static void prepareMatricesForVertexBlend(const Affine3** blendMatrices,
+            const Affine3* boneMatrices, const IndexMap& indexMap);
 
         /** Performs a software indexed vertex blend, of the kind used for
             skeletal animation although it can be used for other purposes. 
@@ -817,7 +817,7 @@ namespace Ogre {
         */
         static void softwareVertexBlend(const VertexData* sourceVertexData, 
             const VertexData* targetVertexData,
-            const Matrix4* const* blendMatrices, size_t numMatrices,
+            const Affine3* const* blendMatrices, size_t numMatrices,
             bool blendNormals);
 
         /** Performs a software vertex morph, of the kind used for
@@ -861,8 +861,8 @@ namespace Ogre {
             number in start and end.
         */
         static void softwareVertexPoseBlend(Real weight, 
-            const map<size_t, Vector3>::type& vertexOffsetMap,
-            const map<size_t, Vector3>::type& normalsMap,
+            const std::map<size_t, Vector3>& vertexOffsetMap,
+            const std::map<size_t, Vector3>& normalsMap,
             VertexData* targetVertexData);
         /** Gets a reference to the optional name assignments of the SubMeshes. */
         const SubMeshNameMap& getSubMeshNameMap(void) const { return mSubMeshNameMap; }

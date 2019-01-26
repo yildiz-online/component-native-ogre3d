@@ -31,12 +31,12 @@ THE SOFTWARE
 #include <exception>
 #include <iostream>
 
-#include <Ogre.h>
-#include <OgreApplicationContext.h>
-#include <OgreInput.h>
-#include <OgreRTShaderSystem.h>
-#include <OgreApplicationContext.h>
-#include <OgreCameraMan.h>
+#include "Ogre.h"
+#include "OgreApplicationContext.h"
+#include "OgreInput.h"
+#include "OgreRTShaderSystem.h"
+#include "OgreApplicationContext.h"
+#include "OgreCameraMan.h"
 
 using namespace Ogre;
 using namespace OgreBites;
@@ -120,8 +120,7 @@ void TutorialApplication::setup()
 
     //! [planedefine]
     MeshManager::getSingleton().createPlane(
-            "ground",
-            ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,
+            "ground", RGN_DEFAULT,
             plane,
             1500, 1500, 20, 20,
             true,
@@ -161,8 +160,6 @@ void TutorialApplication::setup()
     //! [spotlighttype]
 
     //! [spotlightposrot]
-    spotLight->setDirection(Vector3::NEGATIVE_UNIT_Z);
-
     SceneNode* spotLightNode = scnMgr->getRootSceneNode()->createChildSceneNode();
     spotLightNode->attachObject(spotLight);
     spotLightNode->setDirection(-1, -1, 0);
@@ -184,8 +181,6 @@ void TutorialApplication::setup()
     //! [directlightcolor]
 
     //! [directlightdir]
-    directionalLight->setDirection(Vector3::NEGATIVE_UNIT_Z);
-
     SceneNode* directionalLightNode = scnMgr->getRootSceneNode()->createChildSceneNode();
     directionalLightNode->attachObject(directionalLight);
     directionalLightNode->setDirection(Vector3(0, -1, 1));

@@ -44,11 +44,7 @@ namespace Ogre
         // get all the GL errors
         while (glErr != GL_NO_ERROR)
         {
-            const char* glerrStr = (const char*)gluErrorString(glErr);
-            if (glerrStr)
-            {
-                msg += String(glerrStr);
-            }
+            msg += glErrorToString(glErr);
             glErr = glGetError();
             errorsFound = true;
         }
@@ -67,10 +63,24 @@ namespace Ogre
         }
     }
 
-    //-----------------------------------------------------------------------------
-    String logObjectInfo(const String& msg, const GLhandleARB obj)
+    String logObjectInfo(const String& msg, GLuint obj)
     {
-        String logMessage = msg;
+        String logMessage = getObjectInfo(obj);
+
+        if (logMessage.empty())
+            return msg;
+
+        logMessage = msg + "\n" + logMessage;
+
+        LogManager::getSingleton().logMessage(LML_CRITICAL, logMessage);
+
+        return logMessage;
+    }
+
+    //-----------------------------------------------------------------------------
+    String getObjectInfo(GLuint obj)
+    {
+        String logMessage;
 
         if (obj > 0)
         {
@@ -88,8 +98,7 @@ namespace Ogre
                 GLcharARB * infoLog = new GLcharARB[infologLength];
 
                 glGetInfoLogARB(obj, infologLength, &charsWritten, infoLog);
-                logMessage += String(infoLog);
-                LogManager::getSingleton().logMessage(logMessage);
+                logMessage = String(infoLog);
 
                 delete [] infoLog;
             }

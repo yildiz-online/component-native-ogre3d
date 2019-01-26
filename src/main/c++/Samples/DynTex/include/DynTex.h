@@ -21,16 +21,6 @@ public:
             "It's cold though, so the frost will return after a while.";
     }
 
-    StringVector getRequiredPlugins()
-    {
-        StringVector names;
-		if(!GpuProgramManager::getSingleton().isSyntaxSupported("glsles")
-		&& !GpuProgramManager::getSingleton().isSyntaxSupported("glsl150")
-		&& !GpuProgramManager::getSingleton().isSyntaxSupported("hlsl"))
-            names.push_back("Cg Program Manager");
-        return names;
-    }
-
     bool frameRenderingQueued(const FrameEvent& evt)
     {
         // shoot a ray from the cursor to the plane
@@ -98,12 +88,20 @@ protected:
         // create our dynamic texture with 8-bit luminance texels
         TexturePtr tex = TextureManager::getSingleton().createManual("thaw", ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,
             TEX_TYPE_2D, TEXTURE_SIZE, TEXTURE_SIZE, 0, PF_L8, TU_DYNAMIC_WRITE_ONLY);
+        MaterialManager::getSingleton()
+            .getByName("Examples/Frost", ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME)
+            ->getTechnique(0)
+            ->getPass(0)
+            ->getTextureUnitState(1)
+            ->setTexture(tex);
 
         mTexBuf = tex->getBuffer();  // save off the texture buffer
 
         // initialise the texture to have full luminance
         mConstantTexBuf.resize(mTexBuf->getSizeInBytes(), 0xff);
-        mTexBuf->writeData(0, mConstantTexBuf.size(), &mConstantTexBuf[0]);
+
+        mBox = PixelBox(TEXTURE_SIZE, TEXTURE_SIZE, 1, PF_L8, mConstantTexBuf.data());
+        mTexBuf->blitFromMemory(mBox);
 
         // create a penguin and attach him to our penguin node
         Entity* penguin = mSceneMgr->createEntity("Penguin", "penguin.mesh");
@@ -167,7 +165,7 @@ protected:
             }
         }
 
-        mTexBuf->writeData(0, mConstantTexBuf.size(), &mConstantTexBuf[0]);
+        mTexBuf->blitFromMemory(mBox);
     }
 
     void cleanupContent()
@@ -179,7 +177,8 @@ protected:
     const unsigned int TEXTURE_SIZE;
     const unsigned int SQR_BRUSH_RADIUS;
     HardwarePixelBufferSharedPtr mTexBuf;
-    vector<uint8>::type mConstantTexBuf;
+    PixelBox mBox;
+    std::vector<uint8> mConstantTexBuf;
     Real mPlaneSize;
     RaySceneQuery* mCursorQuery;
     Vector2 mBrushPos;

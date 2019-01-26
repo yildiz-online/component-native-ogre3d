@@ -30,7 +30,6 @@ THE SOFTWARE.
 #include "OgreException.h"
 #include "OgreLogManager.h"
 #include "OgreStringConverter.h"
-#include "OgreWindowEventUtilities.h"
 
 #include "OgreGLRenderSystemCommon.h"
 
@@ -183,6 +182,11 @@ namespace Ogre {
                 StringConverter::parseBool(opt->second))
             {
                 preserveContextOpt = true;
+            }
+                      
+            if ((opt = miscParams->find("externalGLControl")) != end)
+            {
+                mIsExternalGLControl = StringConverter::parseBool(opt->second);
             }
         }
         
@@ -355,7 +359,7 @@ namespace Ogre {
             if (config)
             {
                 bool isLandscape = (int)AConfiguration_getOrientation((AConfiguration*)config) == 2;
-                mGLSupport->setConfigOption("Orientation", isLandscape ? "Landscape" : "Portrait");
+                Root::getSingletonPtr()->getRenderSystem()->setConfigOption("Orientation", isLandscape ? "Landscape" : "Portrait");
             }
         }
         
@@ -369,7 +373,7 @@ namespace Ogre {
             {
                 mContext->_createInternalResources(mEglDisplay, mEglConfig, mEglSurface, NULL);
 
-                static_cast<GLRenderSystemCommon*>(Ogre::Root::getSingletonPtr()->getRenderSystem())->resetRenderer(this);
+                static_cast<GLRenderSystemCommon*>(Root::getSingletonPtr()->getRenderSystem())->resetRenderer(this);
             }
         }
     }

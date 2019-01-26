@@ -26,7 +26,6 @@ THE SOFTWARE.
 -----------------------------------------------------------------------------
 */
 #include "OgreStableHeaders.h"
-#include "OgreString.h"
 
 namespace Ogre {
     const String& StringUtil::BLANK = BLANKSTRING;
@@ -374,7 +373,7 @@ namespace Ogre {
     void StringUtil::splitBaseFilename(const Ogre::String& fullName, 
         Ogre::String& outBasename, Ogre::String& outExtention)
     {
-        size_t i = fullName.find_last_of(".");
+        size_t i = fullName.find_last_of('.');
         if (i == Ogre::String::npos)
         {
             outExtention.clear();
@@ -478,4 +477,31 @@ namespace Ogre {
         return result;
     }
 
+    String StringUtil::format(const char* fmt, ...)
+    {
+        // try to use a stack buffer and fall back to heap for large strings
+        char sbuf[1024];
+        size_t bsize = sizeof(sbuf);
+        std::vector<char> hbuf;
+        char* pbuf = sbuf;
+
+        while (true)
+        {
+            va_list va;
+            va_start(va, fmt);
+            int len = vsnprintf(pbuf, bsize, fmt, va);
+            va_end(va);
+
+            OgreAssert(len >= 0, "Check format string for errors");
+            if (size_t(len) >= bsize)
+            {
+                hbuf.resize(len + 1);
+                pbuf = hbuf.data();
+                bsize = hbuf.size();
+                continue;
+            }
+            pbuf[bsize - 1] = 0;
+            return String(pbuf, len);
+        }
+    }
 }

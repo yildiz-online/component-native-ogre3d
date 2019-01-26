@@ -88,20 +88,27 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     void D3D9HLSLProgram::loadFromSource(void)
     {
-        if ( GpuProgramManager::getSingleton().isMicrocodeAvailableInCache(String("D3D9_HLSL_") + mName) )
+        uint32 hash = _getHash();
+        if ( GpuProgramManager::getSingleton().isMicrocodeAvailableInCache(hash) )
         {
-            getMicrocodeFromCache();
+            getMicrocodeFromCache(hash);
         }
         else
         {
             compileMicrocode();
+
+
+            if ( GpuProgramManager::getSingleton().getSaveMicrocodesToCache() )
+            {
+                addMicrocodeToCache(hash);
+            }
         }
     }
     //-----------------------------------------------------------------------
-    void D3D9HLSLProgram::getMicrocodeFromCache(void)
+    void D3D9HLSLProgram::getMicrocodeFromCache(uint32 id)
     {
         GpuProgramManager::Microcode cacheMicrocode = 
-            GpuProgramManager::getSingleton().getMicrocodeFromCache(String("D3D9_HLSL_") + mName);
+            GpuProgramManager::getSingleton().getMicrocodeFromCache(id);
         
         cacheMicrocode->seek(0);
 
@@ -143,7 +150,7 @@ namespace Ogre {
         // Populate preprocessor defines
         String stringBuffer;
 
-        vector<D3DXMACRO>::type defines;
+        std::vector<D3DXMACRO> defines;
         const D3DXMACRO* pDefines = 0;
         if (!mPreprocessorDefines.empty())
         {
@@ -308,19 +315,12 @@ namespace Ogre {
 
 
             SAFE_RELEASE(pConstTable);
-
-            if ( GpuProgramManager::getSingleton().getSaveMicrocodesToCache() )
-            {
-                addMicrocodeToCache();
-            }
         }
     }
     //-----------------------------------------------------------------------
-    void D3D9HLSLProgram::addMicrocodeToCache()
+    void D3D9HLSLProgram::addMicrocodeToCache(uint32 id)
     {
         // add to the microcode to the cache
-        String name = String("D3D9_HLSL_") + mName;
-
         size_t sizeOfBuffer = sizeof(size_t) + mMicroCode->GetBufferSize() + sizeof(size_t) + mParametersMapSizeAsBuffer;
         
         // create microcode
@@ -360,7 +360,7 @@ namespace Ogre {
 
 
         // add to the microcode to the cache
-        GpuProgramManager::getSingleton().addMicrocodeToCache(name, newMicrocode);
+        GpuProgramManager::getSingleton().addMicrocodeToCache(id, newMicrocode);
     }
     //-----------------------------------------------------------------------
     void D3D9HLSLProgram::createLowLevelImpl(void)
@@ -719,7 +719,7 @@ namespace Ogre {
     void D3D9HLSLProgram::setTarget(const String& target)
     {
         mTarget = "";
-        vector<String>::type profiles = StringUtil::split(target, " ");
+        std::vector<String> profiles = StringUtil::split(target, " ");
 
         for(unsigned int i = 0 ; i < profiles.size() ; i++)
         {
@@ -734,7 +734,7 @@ namespace Ogre {
         if(mTarget == "")
         {
             LogManager::getSingleton().logMessage(
-                "Invalid target for D3D11 shader '" + mName + "' - '" + target + "'");
+                "Invalid target for D3D9 shader '" + mName + "' - '" + target + "'");
         }
     }
 

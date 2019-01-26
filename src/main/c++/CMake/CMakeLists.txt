@@ -19,16 +19,7 @@ else()
 	set(OGRE_CMAKE_DIR "${OGRE_LIB_DIRECTORY}/OGRE/cmake")
 endif()
 
-set(INST_FILES
-  Utils/FindPkgMacros.cmake
-  Utils/MacroLogFeature.cmake
-  Utils/PreprocessorUtils.cmake
-  Utils/PrecompiledHeader.cmake
-  Utils/OgreAddTargets.cmake
-  Utils/OgreConfigTargets.cmake
-  Utils/OgreGetVersion.cmake
-  Utils/OgreFindFrameworks.cmake
-) 
+set(INST_FILES Utils/FindPkgMacros.cmake) 
 
 if (OGRE_CONFIG_THREAD_PROVIDER STREQUAL "poco")
   set(INST_FILES ${INST_FILES} Packages/FindPOCO.cmake)
@@ -43,8 +34,6 @@ set(STATIC_INST_FILES
   Packages/FindDirectX.cmake
   Packages/FindDirectX11.cmake
   Packages/FindFreeImage.cmake
-  Packages/FindFreetype.cmake
-  Packages/FindOpenGLES.cmake
   Packages/FindOpenGLES2.cmake
   Packages/FindZZip.cmake
   Packages/FindSoftimage.cmake

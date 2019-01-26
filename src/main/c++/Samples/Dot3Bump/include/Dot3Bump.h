@@ -94,14 +94,9 @@ public:
         {
             // get the light pivot that corresponds to this checkbox
             SceneNode* pivot = box->getName() == "Light1" ? mLightPivot1 : mLightPivot2;
-            SceneNode::ObjectIterator it = pivot->getAttachedObjectIterator();
 
-            while (it.hasMoreElements())  // toggle visibility of light and billboard set
-            {
-                MovableObject* o = it.getNext();
-                o->setVisible(box->isChecked());
-            }
-
+            // toggle visibility of light and billboard set
+            pivot->setVisible(box->isChecked());
         }
         else if (box->getName() == "MoveLights")
         {
@@ -145,9 +140,9 @@ protected:
             // Find the location of the core shader libs
             for (; it != itEnd; ++it)
             {
-                if ((*it)->archive->getName().find("RTShaderLib") != Ogre::String::npos)
+                if (it->archive->getName().find("RTShaderLib") != Ogre::String::npos)
                 {
-                    shaderCoreLibsPath = (*it)->archive->getName() + "/";   
+                    shaderCoreLibsPath = it->archive->getName() + "/";
                     coreLibsFound = true;
                     break;
                 }

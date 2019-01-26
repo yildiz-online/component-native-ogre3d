@@ -43,7 +43,7 @@ namespace Ogre {
     // Interface.
     public:     
         void                setActiveDevice                 (D3D9Device* device);
-        D3D9Device*         getActiveDevice                 ();
+        D3D9Device*         getActiveDevice                 () {return mActiveDevice;}
         void                setActiveRenderTargetDevice     (D3D9Device* device);
         D3D9Device*         getActiveRenderTargetDevice     ();     
         UINT                getDeviceCount                  ();
@@ -58,10 +58,10 @@ namespace Ogre {
         ~D3D9DeviceManager  ();
 
     protected:      
-        typedef vector<D3D9Device*>::type        DeviceList;
+        typedef std::vector<D3D9Device*>        DeviceList;
         typedef DeviceList::iterator             DeviceIterator;
         typedef DeviceList::const_iterator       ConstDeviceIterator;
-        typedef vector<D3D9RenderWindow*>::type  D3D9RenderWindowList;
+        typedef std::vector<D3D9RenderWindow*>  D3D9RenderWindowList;
 
     protected:
         D3D9Device*         selectDevice        (D3D9RenderWindow* renderWindow, D3D9RenderWindowList& renderWindowsGroup);

@@ -28,27 +28,15 @@ THE SOFTWARE.
 // Ogre includes
 #include "OgreStableHeaders.h"
 
-#include "OgreRoot.h"
-
-#include "OgreRenderSystem.h"
 #include "OgreRenderWindow.h"
-#include "OgreException.h"
 #include "OgreControllerManager.h"
-#include "OgreLogManager.h"
 #include "OgreDynLibManager.h"
 #include "OgreDynLib.h"
 #include "OgreConfigFile.h"
-#include "OgreMaterialManager.h"
 #include "OgreRenderSystemCapabilitiesManager.h"
-#include "OgreMeshManager.h"
-#include "OgreTextureManager.h"
-#include "OgreParticleSystemManager.h"
 #include "OgreSkeletonManager.h"
-#include "OgreProfiler.h"
 #include "OgreConfigDialog.h"
-#include "OgreArchiveManager.h"
 #include "OgrePlugin.h"
-#include "OgreFileSystem.h"
 #include "OgreShadowVolumeExtrudeProgram.h"
 #include "OgreResourceBackgroundQueue.h"
 #include "OgreEntity.h"
@@ -56,35 +44,22 @@ THE SOFTWARE.
 #include "OgreBillboardChain.h"
 #include "OgreRibbonTrail.h"
 #include "OgreLight.h"
-#include "OgreManualObject.h"
 #include "OgreRenderQueueInvocation.h"
-#include "OgrePlatformInformation.h"
 #include "OgreConvexBody.h"
 #include "OgreTimer.h"
 #include "OgreFrameListener.h"
 #include "OgreLodStrategyManager.h"
-#include "Threading/OgreDefaultWorkQueue.h"
 #include "OgreFileSystemLayer.h"
+#include "OgreSceneLoaderManager.h"
 
-#if OGRE_NO_FREEIMAGE == 0
-#include "OgreFreeImageCodec.h"
-#endif
 #if OGRE_NO_DDS_CODEC == 0
 #include "OgreDDSCodec.h"
-#endif
-#if OGRE_NO_STBI_CODEC == 0
-#include "OgreSTBICodec.h"
-#endif
-#if OGRE_NO_ZIP_ARCHIVE == 0
-#include "OgreZip.h"
 #endif
 
 #include "OgreHardwareBufferManager.h"
 #include "OgreHighLevelGpuProgramManager.h"
 #include "OgreExternalTextureSourceManager.h"
 #include "OgreCompositorManager.h"
-#include "OgreScriptCompiler.h"
-#include "OgreWindowEventUtilities.h"
 
 #if OGRE_NO_PVRTC_CODEC == 0
 #  include "OgrePVRTCCodec.h"
@@ -94,6 +69,14 @@ THE SOFTWARE.
 #endif
 #if OGRE_NO_ASTC_CODEC == 0
 #  include "OgreASTCCodec.h"
+#endif
+
+#if OGRE_PLATFORM == OGRE_PLATFORM_APPLE || OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS
+#include "macUtils.h"
+#endif
+
+#if OGRE_PLATFORM == OGRE_PLATFORM_ANDROID
+#include "Android/OgreAndroidLogListener.h"
 #endif
 
 namespace Ogre {
@@ -108,29 +91,23 @@ namespace Ogre {
         assert( msSingleton );  return ( *msSingleton );
     }
 
-#if OGRE_PLATFORM != OGRE_PLATFORM_NACL
     typedef void (*DLL_START_PLUGIN)(void);
     typedef void (*DLL_STOP_PLUGIN)(void);
-#endif
 
     //-----------------------------------------------------------------------
     Root::Root(const String& pluginFileName, const String& configFileName,
         const String& logFileName)
       : mQueuedEnd(false)
-      , mLogManager(0)
-      , mRenderSystemCapabilitiesManager(0)
       , mNextFrame(0)
       , mFrameSmoothingTime(0.0f)
       , mRemoveQueueStructuresOnClear(false)
       , mDefaultMinPixelSize(0)
-      , mFreqUpdatedBuffersUploadOption(HardwareBuffer::HBU_DEFAULT)
       , mNextMovableObjectTypeFlag(1)
       , mIsInitialised(false)
       , mIsBlendIndicesGpuRedundant(true)
       , mIsBlendWeightsGpuRedundant(true)
     {
         // superclass will do singleton checking
-        String msg;
 
         // Init
         mActiveRenderer = 0;
@@ -142,9 +119,9 @@ namespace Ogre {
         mConfigFileName = configFileName;
 
         // Create log manager and default log file if there is no log manager yet
-        if(LogManager::getSingletonPtr() == 0)
+        if(!LogManager::getSingletonPtr())
         {
-            mLogManager = OGRE_NEW LogManager();
+            mLogManager.reset(new LogManager());
 
 #if OGRE_PLATFORM == OGRE_PLATFORM_EMSCRIPTEN
             // suppress writing log to Emscripten virtual FS, improves performance
@@ -155,17 +132,13 @@ namespace Ogre {
         }
 
 #if OGRE_PLATFORM == OGRE_PLATFORM_ANDROID
-        mAndroidLogger = OGRE_NEW AndroidLogListener();
-        mLogManager->getDefaultLog()->addListener(mAndroidLogger);
+        mAndroidLogger.reset(new AndroidLogListener());
+        mLogManager->getDefaultLog()->addListener(mAndroidLogger.get());
 #endif
 
-        // Dynamic library manager
-        mDynLibManager = OGRE_NEW DynLibManager();
-
-        mArchiveManager = OGRE_NEW ArchiveManager();
-
-        // ResourceGroupManager
-        mResourceGroupManager = OGRE_NEW ResourceGroupManager();
+        mDynLibManager.reset(new DynLibManager());
+        mArchiveManager.reset(new ArchiveManager());
+        mResourceGroupManager.reset(new ResourceGroupManager());
 
         // WorkQueue (note: users can replace this if they want)
         DefaultWorkQueue* defaultQ = OGRE_NEW DefaultWorkQueue("Root");
@@ -179,61 +152,41 @@ namespace Ogre {
 
         // only allow workers to access rendersystem if threadsupport is 1
         defaultQ->setWorkersCanAccessRenderSystem(OGRE_THREAD_SUPPORT == 1);
-        mWorkQueue = defaultQ;
+        mWorkQueue.reset(defaultQ);
 
         // ResourceBackgroundQueue
-        mResourceBackgroundQueue = OGRE_NEW ResourceBackgroundQueue();
+        mResourceBackgroundQueue.reset(new ResourceBackgroundQueue());
 
         // Create SceneManager enumerator (note - will be managed by singleton)
-        mSceneManagerEnum = OGRE_NEW SceneManagerEnumerator();
-
-        mShadowTextureManager = OGRE_NEW ShadowTextureManager();
-
-        mRenderSystemCapabilitiesManager = OGRE_NEW RenderSystemCapabilitiesManager();
-
-        // ..material manager
-        mMaterialManager = OGRE_NEW MaterialManager();
-
-        // Mesh manager
-        mMeshManager = OGRE_NEW MeshManager();
-
-        // Skeleton manager
-        mSkeletonManager = OGRE_NEW SkeletonManager();
-
-        // ..particle system manager
-        mParticleManager = OGRE_NEW ParticleSystemManager();
-
-        // Compiler manager
-        //mCompilerManager = OGRE_NEW ScriptCompilerManager();
-
-        mTimer = OGRE_NEW Timer();
-
-        // LOD strategy manager
-        mLodStrategyManager = OGRE_NEW LodStrategyManager();
+        mSceneManagerEnum.reset(new SceneManagerEnumerator());
+        mShadowTextureManager.reset(new ShadowTextureManager());
+        mRenderSystemCapabilitiesManager.reset(new RenderSystemCapabilitiesManager());
+        mMaterialManager.reset(new MaterialManager());
+        mMeshManager.reset(new MeshManager());
+        mSkeletonManager.reset(new SkeletonManager());
+        mParticleManager.reset(new ParticleSystemManager());
+        mTimer.reset(new Timer());
+        mLodStrategyManager.reset(new LodStrategyManager());
 
 #if OGRE_PROFILING
         // Profiler
-        mProfiler = OGRE_NEW Profiler();
-        Profiler::getSingleton().setTimer(mTimer);
+        mProfiler.reset(new Profiler());
+        Profiler::getSingleton().setTimer(mTimer.get());
 #endif
 
 
-        mFileSystemArchiveFactory = OGRE_NEW FileSystemArchiveFactory();
-        ArchiveManager::getSingleton().addArchiveFactory( mFileSystemArchiveFactory );
+        mFileSystemArchiveFactory.reset(new FileSystemArchiveFactory());
+        ArchiveManager::getSingleton().addArchiveFactory( mFileSystemArchiveFactory.get() );
 #   if OGRE_NO_ZIP_ARCHIVE == 0
-        mZipArchiveFactory = OGRE_NEW ZipArchiveFactory();
-        ArchiveManager::getSingleton().addArchiveFactory( mZipArchiveFactory );
-        mEmbeddedZipArchiveFactory = OGRE_NEW EmbeddedZipArchiveFactory();
-        ArchiveManager::getSingleton().addArchiveFactory( mEmbeddedZipArchiveFactory );
+        mZipArchiveFactory.reset(new ZipArchiveFactory());
+        ArchiveManager::getSingleton().addArchiveFactory( mZipArchiveFactory.get() );
+        mEmbeddedZipArchiveFactory.reset(new EmbeddedZipArchiveFactory());
+        ArchiveManager::getSingleton().addArchiveFactory( mEmbeddedZipArchiveFactory.get() );
 #   endif
 
 #if OGRE_NO_DDS_CODEC == 0
         // Register image codecs
         DDSCodec::startup();
-#endif
-#if OGRE_NO_FREEIMAGE == 0
-        // Register image codecs
-        FreeImageCodec::startup();
 #endif
 #if OGRE_NO_PVRTC_CODEC == 0
         PVRTCCodec::startup();
@@ -241,64 +194,53 @@ namespace Ogre {
 #if OGRE_NO_ETC_CODEC == 0
         ETCCodec::startup();
 #endif
-#if OGRE_NO_STBI_CODEC == 0
-        STBIImageCodec::startup();
-#endif
 #if OGRE_NO_ASTC_CODEC == 0
         ASTCCodec::startup();
 #endif
 
-        mHighLevelGpuProgramManager = OGRE_NEW HighLevelGpuProgramManager();
-
-        mExternalTextureSourceManager = OGRE_NEW ExternalTextureSourceManager();
-        mCompositorManager = OGRE_NEW CompositorManager();
-
-        mCompilerManager = OGRE_NEW ScriptCompilerManager();
+        mHighLevelGpuProgramManager.reset(new HighLevelGpuProgramManager());
+        mExternalTextureSourceManager.reset(new ExternalTextureSourceManager());
+        mCompositorManager.reset(new CompositorManager());
+        mCompilerManager.reset(new ScriptCompilerManager());
+        mSceneLoaderManager.reset(new SceneLoaderManager());
 
         // Auto window
         mAutoWindow = 0;
 
         // instantiate and register base movable factories
-        mEntityFactory = OGRE_NEW EntityFactory();
-        addMovableObjectFactory(mEntityFactory);
-        mLightFactory = OGRE_NEW LightFactory();
-        addMovableObjectFactory(mLightFactory);
-        mBillboardSetFactory = OGRE_NEW BillboardSetFactory();
-        addMovableObjectFactory(mBillboardSetFactory);
-        mManualObjectFactory = OGRE_NEW ManualObjectFactory();
-        addMovableObjectFactory(mManualObjectFactory);
-        mBillboardChainFactory = OGRE_NEW BillboardChainFactory();
-        addMovableObjectFactory(mBillboardChainFactory);
-        mRibbonTrailFactory = OGRE_NEW RibbonTrailFactory();
-        addMovableObjectFactory(mRibbonTrailFactory);
+        mEntityFactory.reset(new EntityFactory());
+        addMovableObjectFactory(mEntityFactory.get());
+        mLightFactory.reset(new LightFactory());
+        addMovableObjectFactory(mLightFactory.get());
+        mBillboardSetFactory.reset(new BillboardSetFactory());
+        addMovableObjectFactory(mBillboardSetFactory.get());
+        mManualObjectFactory.reset(new ManualObjectFactory());
+        addMovableObjectFactory(mManualObjectFactory.get());
+        mBillboardChainFactory.reset(new BillboardChainFactory());
+        addMovableObjectFactory(mBillboardChainFactory.get());
+        mRibbonTrailFactory.reset(new RibbonTrailFactory());
+        addMovableObjectFactory(mRibbonTrailFactory.get());
 
         // Load plugins
         if (!pluginFileName.empty())
             loadPlugins(pluginFileName);
 
         LogManager::getSingleton().logMessage("*-*-* OGRE Initialising");
-        msg = "*-*-* Version " + mVersion;
-        LogManager::getSingleton().logMessage(msg);
+        LogManager::getSingleton().logMessage("*-*-* Version " + mVersion);
 
         // Can't create managers until initialised
         mControllerManager = 0;
 
         mFirstTimePostWindowInit = false;
-
     }
 
     //-----------------------------------------------------------------------
     Root::~Root()
     {
         shutdown();
-        OGRE_DELETE mRenderSystemCapabilitiesManager;
 
         destroyAllRenderQueueInvocationSequences();
-        OGRE_DELETE mCompositorManager;
-        OGRE_DELETE mExternalTextureSourceManager;
-#if OGRE_NO_FREEIMAGE == 0
-        FreeImageCodec::shutdown();
-#endif
+
 #if OGRE_NO_DDS_CODEC == 0
         DDSCodec::shutdown();
 #endif
@@ -308,73 +250,29 @@ namespace Ogre {
 #if OGRE_NO_ETC_CODEC == 0
         ETCCodec::shutdown();
 #endif
-#if OGRE_NO_STBI_CODEC == 0
-        STBIImageCodec::shutdown();
-#endif
 #if OGRE_NO_ASTC_CODEC == 0
         ASTCCodec::shutdown();
 #endif
-#if OGRE_PROFILING
-        OGRE_DELETE mProfiler;
-#endif
-
-        OGRE_DELETE mLodStrategyManager;
-
-        OGRE_DELETE mArchiveManager;
-
-#   if OGRE_NO_ZIP_ARCHIVE == 0
-        OGRE_DELETE mZipArchiveFactory;
-        OGRE_DELETE mEmbeddedZipArchiveFactory;
-#   endif
-        OGRE_DELETE mFileSystemArchiveFactory;
-
-        OGRE_DELETE mSkeletonManager;
-        OGRE_DELETE mMeshManager;
-        OGRE_DELETE mParticleManager;
-
-        OGRE_DELETE mControllerManager;
-        OGRE_DELETE mHighLevelGpuProgramManager;
-
+		mCompositorManager.reset(); // needs rendersystem
+        mParticleManager.reset(); // may use plugins
         unloadPlugins();
-        OGRE_DELETE mMaterialManager;
+
         Pass::processPendingPassUpdates(); // make sure passes are cleaned
-        OGRE_DELETE mResourceBackgroundQueue;
-        OGRE_DELETE mResourceGroupManager;
-
-        OGRE_DELETE mEntityFactory;
-        OGRE_DELETE mLightFactory;
-        OGRE_DELETE mBillboardSetFactory;
-        OGRE_DELETE mManualObjectFactory;
-        OGRE_DELETE mBillboardChainFactory;
-        OGRE_DELETE mRibbonTrailFactory;
-
-        OGRE_DELETE mWorkQueue;
-
-        OGRE_DELETE mTimer;
-
-        OGRE_DELETE mDynLibManager;
-
-#if OGRE_PLATFORM == OGRE_PLATFORM_ANDROID
-        mLogManager->getDefaultLog()->removeListener(mAndroidLogger);
-        OGRE_DELETE mAndroidLogger;
-#endif
-
-        OGRE_DELETE mLogManager;
-
-        OGRE_DELETE mCompilerManager;
 
         mAutoWindow = 0;
-        mFirstTimePostWindowInit = false;
 
+        StringInterface::cleanupDictionary();
 
-        StringInterface::cleanupDictionary ();
+#if OGRE_PLATFORM == OGRE_PLATFORM_ANDROID
+        mLogManager->getDefaultLog()->removeListener(mAndroidLogger.get());
+#endif
     }
 
     //-----------------------------------------------------------------------
     void Root::saveConfig(void)
     {
-#if OGRE_PLATFORM == OGRE_PLATFORM_NACL || OGRE_PLATFORM == OGRE_PLATFORM_EMSCRIPTEN
-        OGRE_EXCEPT(Exception::ERR_CANNOT_WRITE_TO_FILE, "saveConfig is not supported on NaCl",
+#if OGRE_PLATFORM == OGRE_PLATFORM_EMSCRIPTEN
+        OGRE_EXCEPT(Exception::ERR_CANNOT_WRITE_TO_FILE, "saveConfig is not supported",
             "Root::saveConfig");
 #endif
 #if OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS
@@ -424,7 +322,7 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     bool Root::restoreConfig(void)
     {
-#if OGRE_PLATFORM == OGRE_PLATFORM_NACL || OGRE_PLATFORM == OGRE_PLATFORM_EMSCRIPTEN
+#if OGRE_PLATFORM == OGRE_PLATFORM_EMSCRIPTEN
         OGRE_EXCEPT(Exception::ERR_CANNOT_WRITE_TO_FILE, "restoreConfig is not supported",
             "Root::restoreConfig");
 #endif
@@ -554,23 +452,6 @@ namespace Ogre {
     }
 
     //-----------------------------------------------------------------------
-    bool Root::showConfigDialog(void)
-    {
-#if OGRE_PLATFORM == OGRE_PLATFORM_NACL || OGRE_PLATFORM == OGRE_PLATFORM_EMSCRIPTEN
-        OGRE_EXCEPT(Exception::ERR_CANNOT_WRITE_TO_FILE, "showConfigDialog is not supported on NaCl",
-            "Root::showConfigDialog");
-#endif
-
-        // Displays the standard config dialog
-        // Will use stored defaults if available
-        ConfigDialog* dlg = OGRE_NEW ConfigDialog();
-        bool isOk = showConfigDialog(dlg);
-
-        OGRE_DELETE dlg;
-        return isOk;
-    }
-
-    //-----------------------------------------------------------------------
     const RenderSystemList& Root::getAvailableRenderers(void)
     {
         // Returns a vector of renders
@@ -616,7 +497,8 @@ namespace Ogre {
 
         mActiveRenderer = system;
         // Tell scene managers
-        SceneManagerEnumerator::getSingleton().setRenderSystem(system);
+        if(mSceneManagerEnum)
+            mSceneManagerEnum->setRenderSystem(system);
 
         if(RenderSystem::Listener* ls = RenderSystem::getSharedListener())
             ls->eventOccurred("RenderSystemChanged");
@@ -663,7 +545,7 @@ namespace Ogre {
             "system has been selected.", "Root::initialise");
 
         if (!mControllerManager)
-            mControllerManager = OGRE_NEW ControllerManager();
+            mControllerManager.reset(new ControllerManager());
 
         // .rendercaps manager
         RenderSystemCapabilitiesManager& rscManager = RenderSystemCapabilitiesManager::getSingleton();
@@ -737,17 +619,6 @@ namespace Ogre {
         mActiveRenderer->useCustomRenderSystemCapabilities(capabilities);
     }
     //-----------------------------------------------------------------------
-    String Root::getErrorDescription(long errorNumber)
-    {
-
-        // Pass to render system
-        if (mActiveRenderer)
-            return mActiveRenderer->getErrorDescription(errorNumber);
-        else
-            return "";
-
-    }
-    //-----------------------------------------------------------------------
     void Root::addSceneManagerFactory(SceneManagerFactory* fact)
     {
         mSceneManagerEnum->addFactory(fact);
@@ -779,12 +650,6 @@ namespace Ogre {
         const String& instanceName)
     {
         return mSceneManagerEnum->createSceneManager(typeName, instanceName);
-    }
-    //-----------------------------------------------------------------------
-    SceneManager* Root::createSceneManager(SceneTypeMask typeMask,
-        const String& instanceName)
-    {
-        return mSceneManagerEnum->createSceneManager(typeMask, instanceName);
     }
     //-----------------------------------------------------------------------
     void Root::destroySceneManager(SceneManager* sm)
@@ -836,11 +701,11 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     void Root::_syncAddedRemovedFrameListeners()
     {
-        for (set<FrameListener*>::type::iterator i = mRemovedFrameListeners.begin(); i != mRemovedFrameListeners.end(); ++i)
+        for (std::set<FrameListener*>::iterator i = mRemovedFrameListeners.begin(); i != mRemovedFrameListeners.end(); ++i)
             mFrameListeners.erase(*i);
         mRemovedFrameListeners.clear();
 
-        for (set<FrameListener*>::type::iterator i = mAddedFrameListeners.begin(); i != mAddedFrameListeners.end(); ++i)
+        for (std::set<FrameListener*>::iterator i = mAddedFrameListeners.begin(); i != mAddedFrameListeners.end(); ++i)
             mFrameListeners.insert(*i);
         mAddedFrameListeners.clear();
     }
@@ -851,8 +716,11 @@ namespace Ogre {
         _syncAddedRemovedFrameListeners();
 
         // Tell all listeners
-        for (set<FrameListener*>::type::iterator i = mFrameListeners.begin(); i != mFrameListeners.end(); ++i)
+        for (std::set<FrameListener*>::iterator i = mFrameListeners.begin(); i != mFrameListeners.end(); ++i)
         {
+            if(mRemovedFrameListeners.find(*i) != mRemovedFrameListeners.end())
+                continue;
+
             if (!(*i)->frameStarted(evt))
                 return false;
         }
@@ -867,8 +735,11 @@ namespace Ogre {
         _syncAddedRemovedFrameListeners();
 
         // Tell all listeners
-        for (set<FrameListener*>::type::iterator i = mFrameListeners.begin(); i != mFrameListeners.end(); ++i)
+        for (std::set<FrameListener*>::iterator i = mFrameListeners.begin(); i != mFrameListeners.end(); ++i)
         {
+            if(mRemovedFrameListeners.find(*i) != mRemovedFrameListeners.end())
+                continue;
+
             if (!(*i)->frameRenderingQueued(evt))
                 return false;
         }
@@ -882,8 +753,11 @@ namespace Ogre {
 
         // Tell all listeners
         bool ret = true;
-        for (set<FrameListener*>::type::iterator i = mFrameListeners.begin(); i != mFrameListeners.end(); ++i)
+        for (std::set<FrameListener*>::iterator i = mFrameListeners.begin(); i != mFrameListeners.end(); ++i)
         {
+            if(mRemovedFrameListeners.find(*i) != mRemovedFrameListeners.end())
+                continue;
+
             if (!(*i)->frameEnded(evt))
             {
                 ret = false;
@@ -990,9 +864,6 @@ namespace Ogre {
 
         while( !mQueuedEnd )
         {
-            //Pump messages in all registered RenderWindow windows
-            WindowEventUtilities::messagePump();
-
             if (!renderOneFrame())
                 break;
         }
@@ -1042,12 +913,13 @@ namespace Ogre {
         if(mSceneManagerEnum)
             mSceneManagerEnum->shutdownAll();
         if(mFirstTimePostWindowInit)
+        {
             shutdownPlugins();
-        OGRE_DELETE mSceneManagerEnum;
-        mSceneManagerEnum = NULL;
-
-        OGRE_DELETE mShadowTextureManager;
-        mShadowTextureManager = NULL;
+            mParticleManager->removeAllTemplates(true);
+            mFirstTimePostWindowInit = false;
+        }
+        mSceneManagerEnum.reset();
+        mShadowTextureManager.reset();
 
         ShadowVolumeExtrudeProgram::shutdown();
         ResourceGroupManager::getSingleton().shutdownAll();
@@ -1070,14 +942,23 @@ namespace Ogre {
         try {
             cfg.load( pluginsfile );
         }
-        catch (Exception)
+        catch (Exception& e)
         {
-            LogManager::getSingleton().logMessage(pluginsfile + " not found, automatic plugin loading disabled.");
+            LogManager::getSingleton().logMessage("automatic plugin loading disabled: "+e.getDescription());
             return;
         }
 
-        pluginDir = cfg.getSetting("PluginFolder"); // Ignored on Mac OS X, uses Resources/ directory
+        pluginDir = cfg.getSetting("PluginFolder");
         pluginList = cfg.getMultiSetting("Plugin");
+
+        StringUtil::trim(pluginDir);
+        if(pluginDir.empty() || pluginDir[0] == '.')
+        {
+            // resolve relative path with regards to configfile
+            String baseDir, filename;
+            StringUtil::splitFilename(pluginsfile, filename, baseDir);
+            pluginDir = baseDir + pluginDir;
+        }
 
         pluginDir = FileSystemLayer::resolveBundlePath(pluginDir);
 
@@ -1116,7 +997,7 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     void Root::unloadPlugins(void)
     {
-#if OGRE_PLATFORM != OGRE_PLATFORM_NACL && OGRE_PLATFORM != OGRE_PLATFORM_EMSCRIPTEN
+#if OGRE_PLATFORM != OGRE_PLATFORM_EMSCRIPTEN
         // unload dynamic libs first
         for (PluginLibList::reverse_iterator i = mPluginLibs.rbegin(); i != mPluginLibs.rend(); ++i)
         {
@@ -1142,19 +1023,6 @@ namespace Ogre {
         }
         mPlugins.clear();
 #endif
-    }
-    //-----------------------------------------------------------------------
-    void Root::addResourceLocation(const String& name, const String& locType,
-        const String& groupName, bool recursive)
-    {
-        ResourceGroupManager::getSingleton().addResourceLocation(
-            name, locType, groupName, recursive);
-    }
-    //-----------------------------------------------------------------------
-    void Root::removeResourceLocation(const String& name, const String& groupName)
-    {
-        ResourceGroupManager::getSingleton().removeResourceLocation(
-            name, groupName);
     }
     //---------------------------------------------------------------------
     DataStreamPtr Root::createFileStream(const String& filename, const String& groupName,
@@ -1186,7 +1054,7 @@ namespace Ogre {
             {
                 OGRE_DELETE_T(fs, basic_fstream, MEMCATEGORY_GENERAL);
                 OGRE_EXCEPT(Exception::ERR_CANNOT_WRITE_TO_FILE,
-                "Can't open " + filename + " for writing", __FUNCTION__);
+                            "Can't open " + filename + " for writing");
             }
 
             stream = DataStreamPtr(OGRE_NEW FileStreamDataStream(filename, fs));
@@ -1196,8 +1064,7 @@ namespace Ogre {
 
     }
     //---------------------------------------------------------------------
-    DataStreamPtr Root::openFileStream(const String& filename, const String& groupName,
-        const String& locationPattern)
+    DataStreamPtr Root::openFileStream(const String& filename, const String& groupName)
     {
         try
         {
@@ -1213,8 +1080,7 @@ namespace Ogre {
         if(!*ifs)
         {
             OGRE_DELETE_T(ifs, basic_ifstream, MEMCATEGORY_GENERAL);
-            OGRE_EXCEPT(
-                Exception::ERR_FILE_NOT_FOUND, "'" + filename + "' file not found!", __FUNCTION__);
+            OGRE_EXCEPT(Exception::ERR_FILE_NOT_FOUND, "'" + filename + "' file not found!");
         }
         return DataStreamPtr(OGRE_NEW FileStreamDataStream(filename, ifs));
     }
@@ -1369,7 +1235,7 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     void Root::loadPlugin(const String& pluginName)
     {
-#if OGRE_PLATFORM != OGRE_PLATFORM_NACL && OGRE_PLATFORM != OGRE_PLATFORM_EMSCRIPTEN
+#if OGRE_PLATFORM != OGRE_PLATFORM_EMSCRIPTEN
         // Load plugin library
         DynLib* lib = DynLibManager::getSingleton().load( pluginName );
         // Store for later unload
@@ -1396,7 +1262,7 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     void Root::unloadPlugin(const String& pluginName)
     {
-#if OGRE_PLATFORM != OGRE_PLATFORM_NACL && OGRE_PLATFORM != OGRE_PLATFORM_EMSCRIPTEN
+#if OGRE_PLATFORM != OGRE_PLATFORM_EMSCRIPTEN
         PluginLibList::iterator i;
 
         for (i = mPluginLibs.begin(); i != mPluginLibs.end(); ++i)
@@ -1422,7 +1288,7 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     Timer* Root::getTimer(void)
     {
-        return mTimer;
+        return mTimer.get();
     }
     //-----------------------------------------------------------------------
     void Root::oneTimePostWindowInit(void)
@@ -1647,12 +1513,9 @@ namespace Ogre {
     //---------------------------------------------------------------------
     void Root::setWorkQueue(WorkQueue* queue)
     {
-        if (mWorkQueue != queue)
+        if (mWorkQueue.get() != queue)
         {
-            // delete old one (will shut down)
-            OGRE_DELETE mWorkQueue;
-
-            mWorkQueue = queue;
+            mWorkQueue.reset(queue);
             if (mIsInitialised)
                 mWorkQueue->startup();
 

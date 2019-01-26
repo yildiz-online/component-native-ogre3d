@@ -26,15 +26,9 @@ THE SOFTWARE.
 -----------------------------------------------------------------------------
 */
 #include "OgreStableHeaders.h"
-
 #include "OgreOptimisedUtil.h"
 
-#include "OgrePlatformInformation.h"
-
 //#define __DO_PROFILE__
-#ifdef __DO_PROFILE__
-#include "OgreRoot.h"
-#endif
 
 namespace Ogre {
 
@@ -125,7 +119,7 @@ namespace Ogre {
 
         typedef ProfileItem ProfileItems[IMPL_COUNT];
 
-        typedef vector<OptimisedUtil*>::type OptimisedUtilList;
+        typedef std::vector<OptimisedUtil*> OptimisedUtilList;
         OptimisedUtilList mOptimisedUtils;
 
     public:

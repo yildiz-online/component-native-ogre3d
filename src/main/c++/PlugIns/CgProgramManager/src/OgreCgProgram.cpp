@@ -172,13 +172,21 @@ namespace Ogre {
 	{
 		selectProfile();
 
-		if ( GpuProgramManager::getSingleton().isMicrocodeAvailableInCache(String("CG_") + mName) )
+        uint32 hash = FastHash("CG", 2); // HLSL and Cg shaders are indentical
+        hash = _getHash(hash);
+
+		if ( GpuProgramManager::getSingleton().isMicrocodeAvailableInCache(hash) )
 		{
-			getMicrocodeFromCache();
+			getMicrocodeFromCache(hash);
 		}
 		else
 		{
 			compileMicrocode();
+
+            if ( GpuProgramManager::getSingleton().getSaveMicrocodesToCache())
+            {
+                addMicrocodeToCache(hash);
+            }
 		}
 
 		if (mDelegate)
@@ -198,8 +206,7 @@ namespace Ogre {
 				}
 				else if (mInputOp == CG_LINE_ADJ)
 				{
-					mDelegate->setParameter("input_operation_type", "line_strip");
-					mDelegate->setAdjacencyInfoRequired(true);
+					mDelegate->setParameter("input_operation_type", "line_strip_adj");
 				}
 				else if (mInputOp == CG_TRIANGLE)
 				{
@@ -207,8 +214,7 @@ namespace Ogre {
 				}
 				else if (mInputOp == CG_TRIANGLE_ADJ)
 				{
-					mDelegate->setParameter("input_operation_type", "triangle_strip");
-					mDelegate->setAdjacencyInfoRequired(true);
+					mDelegate->setParameter("input_operation_type", "triangle_strip_adj");
 				}
 
 				if (mOutputOp == CG_POINT_OUT)
@@ -224,17 +230,17 @@ namespace Ogre {
 				// otherwise, GLSL will assign them in the order first used, which is
 				// not what we want.
 				GpuProgramParametersSharedPtr params = mDelegate->getDefaultParameters();
-				for (map<String,int>::type::iterator i = mSamplerRegisterMap.begin(); i != mSamplerRegisterMap.end(); ++i)
+				for (std::map<String,int>::iterator i = mSamplerRegisterMap.begin(); i != mSamplerRegisterMap.end(); ++i)
 					params->setNamedConstant(i->first, i->second);
 			}
 			mDelegate->load();
 		}
 	}
 	//-----------------------------------------------------------------------
-	void CgProgram::getMicrocodeFromCache(void)
+	void CgProgram::getMicrocodeFromCache(uint32 id)
 	{
 		GpuProgramManager::Microcode cacheMicrocode = 
-			GpuProgramManager::getSingleton().getMicrocodeFromCache(String("CG_") + mName);
+			GpuProgramManager::getSingleton().getMicrocodeFromCache(id);
 		
 		cacheMicrocode->seek(0);
 
@@ -355,19 +361,13 @@ namespace Ogre {
 			//  "Error while unloading Cg program " + mName + ": ", 
 			//  mCgContext);
 			cgProgram = 0;
-
-			if ( GpuProgramManager::getSingleton().getSaveMicrocodesToCache())
-			{
-				addMicrocodeToCache();
-			}
 		}
 
 
 	}
 	//-----------------------------------------------------------------------
-	void CgProgram::addMicrocodeToCache()
+	void CgProgram::addMicrocodeToCache(uint32 id)
 	{
-		String name = String("CG_") + mName;
 		size_t programStringSize = mProgramString.size();
 		uint32 sizeOfMicrocode = static_cast<uint32>(
 													 sizeof(size_t) +   // size of mProgramString
@@ -417,8 +417,8 @@ namespace Ogre {
 			newMicrocode->write(&samplerMapSize, sizeof(size_t));
 
 			// save sampler register mapping
-			map<String,int>::type::const_iterator sampRegister = mSamplerRegisterMap.begin();
-			map<String,int>::type::const_iterator sampRegisterE = mSamplerRegisterMap.end();
+			std::map<String,int>::const_iterator sampRegister = mSamplerRegisterMap.begin();
+			std::map<String,int>::const_iterator sampRegisterE = mSamplerRegisterMap.end();
 			for (; sampRegister != sampRegisterE; ++sampRegister)
 			{
 				const String& paramName = sampRegister->first;
@@ -436,7 +436,7 @@ namespace Ogre {
 		}
 
 		// add to the microcode to the cache
-		GpuProgramManager::getSingleton().addMicrocodeToCache(name, newMicrocode);
+		GpuProgramManager::getSingleton().addMicrocodeToCache(id, newMicrocode);
 	}
 	//-----------------------------------------------------------------------
 	void CgProgram::createLowLevelImpl(void)
@@ -558,10 +558,10 @@ namespace Ogre {
 	{
 		const String& source;
 		const GpuConstantDefinitionMap& paramMap;
-		const map<String,int>::type samplerMap;
+		const std::map<String,int> samplerMap;
 		bool glsl;
 		String output;
-		map<String,String>::type paramNameMap;
+		std::map<String,String> paramNameMap;
 		String::size_type start;
 		struct ReplacementMark
 		{
@@ -569,10 +569,10 @@ namespace Ogre {
 			String replaceWith;
 			bool operator<(const ReplacementMark& o) const { return pos < o.pos; }
 		};
-		vector<ReplacementMark>::type replacements;
+		std::vector<ReplacementMark> replacements;
 
 		HighLevelOutputFixer(const String& src, const GpuConstantDefinitionMap& params, 
-			const map<String,int>::type& samplers, bool isGLSL) 
+			const std::map<String,int>& samplers, bool isGLSL) 
 			: source(src), paramMap(params), samplerMap(samplers), glsl(isGLSL), start(0)
 		{
 			findNameMappings();
@@ -591,15 +591,15 @@ namespace Ogre {
 				if (cur == String::npos)
 					break;
 				end = source.find('\n', cur);
-				vector<String>::type cols = StringUtil::split(source.substr(cur, end-cur), ":");
+				std::vector<String> cols = StringUtil::split(source.substr(cur, end-cur), ":");
 				cur = end;
 				if (cols.size() < 3)
 					continue;
-				vector<String>::type def = StringUtil::split(cols[0], "[ ");
+				std::vector<String> def = StringUtil::split(cols[0], "[ ");
 				if (def.size() < 3)
 					continue;
 				StringUtil::trim(cols[2]);
-				vector<String>::type repl = StringUtil::split(cols[2], "[ ");
+				std::vector<String> repl = StringUtil::split(cols[2], "[ ");
 				String oldName = def[2];
 				String newName = repl[0];
 				StringUtil::trim(oldName);
@@ -623,7 +623,7 @@ namespace Ogre {
 			for (GpuConstantDefinitionMap::const_iterator it = paramMap.begin(); it != paramMap.end(); ++it)
 			{
 				const String& oldName = it->first;
-				map<String,String>::type::const_iterator pi = paramNameMap.find(oldName);
+				std::map<String,String>::const_iterator pi = paramNameMap.find(oldName);
 				if (pi != paramNameMap.end())
 				{
 					const String& newName = pi->second;
@@ -631,7 +631,9 @@ namespace Ogre {
 					// do we need to replace the definition of the parameter? (GLSL only)
 					if (glsl)
 					{
-						if (it->second.constType == GCT_MATRIX_2X2)
+					    if(it->second.arraySize > 1)
+					        LogManager::getSingleton().logWarning("Incomplete Cg-GLSL mapping - '"+oldName+"' is an mat array");
+					    else if (it->second.constType == GCT_MATRIX_2X2)
 							beg = findAndMark("uniform vec2 "+newName+"[2]", "uniform mat2 "+oldName, beg);
 						else if (it->second.constType == GCT_MATRIX_3X3)
 							beg = findAndMark("uniform vec3 "+newName+"[3]", "uniform mat3 "+oldName, beg);
@@ -656,10 +658,10 @@ namespace Ogre {
 				}
 			}
 
-			for (map<String,int>::type::const_iterator it = samplerMap.begin(); it != samplerMap.end(); ++it)
+			for (std::map<String,int>::const_iterator it = samplerMap.begin(); it != samplerMap.end(); ++it)
 			{
 				const String& oldName = it->first;
-				map<String,String>::type::const_iterator pi = paramNameMap.find(oldName);
+				std::map<String,String>::const_iterator pi = paramNameMap.find(oldName);
 				if (pi != paramNameMap.end())
 				{
 					const String& newName = pi->second;
@@ -708,7 +710,7 @@ namespace Ogre {
 			// sort replacements in order of occurrence
 			std::sort(replacements.begin(), replacements.end());
 			String::size_type cur = start;
-			for (vector<ReplacementMark>::type::iterator it = replacements.begin(); it != replacements.end(); ++it)
+			for (std::vector<ReplacementMark>::iterator it = replacements.begin(); it != replacements.end(); ++it)
 			{
 				ReplacementMark& mark = *it;
 				if (mark.pos > cur)
@@ -729,13 +731,13 @@ namespace Ogre {
 		// Cg logs its renamings in the comments at the beginning of the
 		// processed source file. We can get them from there.
 		// We'll also get rid of those comments to trim down source code size.
-#if OGRE_DEBUG_MODE
+#if OGRE_DEBUG_MODE || 1
 		LogManager::getSingleton().stream() << "Cg high level output for " << getName() << ":\n" << hlSource;
 #endif
 		hlSource = HighLevelOutputFixer(hlSource, mParametersMap, mSamplerRegisterMap, 
 			mSelectedCgProfile == CG_PROFILE_GLSLV || mSelectedCgProfile == CG_PROFILE_GLSLF || 
 			mSelectedCgProfile == CG_PROFILE_GLSLG).output;
-#if OGRE_DEBUG_MODE
+#if OGRE_DEBUG_MODE || 1
 		LogManager::getSingleton().stream() << "Cleaned high level output for " << getName() << ":\n" << hlSource;
 #endif
 	}
@@ -1278,7 +1280,7 @@ namespace Ogre {
 		{
 			size_t includePos = i;
 			size_t afterIncludePos = includePos + 8;
-			size_t newLineBefore = inSource.rfind("\n", includePos);
+			size_t newLineBefore = inSource.rfind('\n', includePos);
 
 			// check we're not in a comment
 			size_t lineCommentIt = inSource.rfind("//", includePos);
@@ -1306,14 +1308,14 @@ namespace Ogre {
 			}
 
 			// find following newline (or EOF)
-			size_t newLineAfter = inSource.find("\n", afterIncludePos);
+			size_t newLineAfter = inSource.find('\n', afterIncludePos);
 			// find include file string container
 			String endDelimeter = "\"";
-			size_t startIt = inSource.find("\"", afterIncludePos);
+			size_t startIt = inSource.find('\"', afterIncludePos);
 			if (startIt == String::npos || startIt > newLineAfter)
 			{
 				// try <>
-				startIt = inSource.find("<", afterIncludePos);
+				startIt = inSource.find('<', afterIncludePos);
 				if (startIt == String::npos || startIt > newLineAfter)
 				{
 					OGRE_EXCEPT(Exception::ERR_INTERNAL_ERROR,

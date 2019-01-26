@@ -30,7 +30,6 @@ THE SOFTWARE.
 #include "OgreException.h"
 #include "OgreLogManager.h"
 #include "OgreStringConverter.h"
-#include "OgreWindowEventUtilities.h"
 #include "OgreViewport.h"
 
 #include "OgreX11EGLSupport.h"
@@ -42,7 +41,7 @@ THE SOFTWARE.
 
 extern "C"
 {
-    int safeXErrorHandler(Display *display, XErrorEvent *event)
+    static int safeXErrorHandler(Display *display, XErrorEvent *event)
     {
         // Ignore all XErrorEvents
         return 0;
@@ -69,7 +68,7 @@ namespace Ogre {
         // Ignore fatal XErrorEvents from stale handles.
         oldXErrorHandler = XSetErrorHandler(safeXErrorHandler);
 
-        if (mWindow)
+        if (mWindow && mIsTopLevel)
         {
             XDestroyWindow((Display*)mNativeDisplay, (Window)mWindow);
         }
@@ -125,17 +124,17 @@ namespace Ogre {
                 if (tokens.size() == 3)
                 {
                     // deprecated display:screen:xid format
-                    mParentWindow = (Window)StringConverter::parseUnsignedLong(tokens[2]);
+                    mParentWindow = (Window)StringConverter::parseSizeT(tokens[2]);
                 }
                 else
                 {
                     // xid format
-                    mParentWindow = (Window)StringConverter::parseUnsignedLong(tokens[0]);
+                    mParentWindow = (Window)StringConverter::parseSizeT(tokens[0]);
                 }
             }
             else if ((opt = miscParams->find("externalWindowHandle")) != end)
             {
-                //vector<String>::type tokens = StringUtil::split(opt->second, " :");
+                //std::vector<String> tokens = StringUtil::split(opt->second, " :");
                         StringVector tokens = StringUtil::split(opt->second, " :");
 
                 LogManager::getSingleton().logMessage(
@@ -145,17 +144,17 @@ namespace Ogre {
                 {
                     // Old display:screen:xid format
                     // The old EGL code always created a "parent" window in this case:
-                    mParentWindow = (Window)StringConverter::parseUnsignedLong(tokens[2]);
+                    mParentWindow = (Window)StringConverter::parseSizeT(tokens[2]);
                 }
                 else if (tokens.size() == 4)
                 {
                     // Old display:screen:xid:visualinfo format
-                    mExternalWindow = (Window)StringConverter::parseUnsignedLong(tokens[2]);
+                    mExternalWindow = (Window)StringConverter::parseSizeT(tokens[2]);
                 }
                 else
                 {
                     // xid format
-                    mExternalWindow = (Window)StringConverter::parseUnsignedLong(tokens[0]);
+                    mExternalWindow = (Window)StringConverter::parseSizeT(tokens[0]);
                 }
             }
 
@@ -265,7 +264,7 @@ namespace Ogre {
             }
 
             XTextProperty titleprop;
-            char *lst = (char*)title.c_str();
+            char *lst = const_cast<char*>(title.c_str());
             XStringListToTextProperty((char **)&lst, 1, &titleprop);
             XSetWMProperties((Display*)mNativeDisplay, (Window)mWindow, &titleprop,
                 NULL, NULL, 0, sizeHints, wmHints, NULL);
@@ -296,8 +295,6 @@ namespace Ogre {
         }
 
         XFlush((Display*)mNativeDisplay);
-
-        WindowEventUtilities::_addRenderWindow(this);
     }
 
     void X11EGLWindow::setFullscreen( bool fullscreen, uint width, uint height )
@@ -425,7 +422,7 @@ namespace Ogre {
                            bool fullScreen, const NameValuePairList *miscParams)
     {
         String title = name;
-        uint samples = 0;
+        int samples = 0;
         int gamma;
         short frequency = 0;
         bool vsync = false;

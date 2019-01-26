@@ -48,10 +48,7 @@ THE SOFTWARE.
 #include "OgreMaterialManager.h"
 #include "OgreTimer.h"
 #include "OgreTerrainMaterialGeneratorA.h"
-
-#if OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS
-#include "macUtils.h"
-#endif
+#include "OgreFileSystemLayer.h"
 
 #if OGRE_COMPILER == OGRE_COMPILER_MSVC
 // we do lots of conversions here, casting them all is tedious & cluttered, we know what we're doing
@@ -251,11 +248,11 @@ namespace Ogre
     //---------------------------------------------------------------------
     AxisAlignedBox Terrain::getWorldAABB() const
     {
-        Matrix4 m = Matrix4::IDENTITY;
+        Affine3 m = Affine3::IDENTITY;
         m.setTrans(getPosition());
 
         AxisAlignedBox ret = getAABB();
-        ret.transformAffine(m);
+        ret.transform(m);
         return ret;
     }
     //---------------------------------------------------------------------
@@ -297,11 +294,17 @@ namespace Ogre
         }
 
         {
+#if OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS
+            static FileSystemLayer fs("");
+#endif
+
             DataStreamPtr stream = Root::createFileStream(
 #if OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS
-                iOSDocumentsDirectory() + "/" +
+                fs.getWritablePath(filename)
+#else
+                filename
 #endif
-                filename,
+                ,
                 _getDerivedResourceGroup(),
                 true);
 
@@ -1124,8 +1127,7 @@ namespace Ogre
             load();
         else
             OGRE_EXCEPT(Exception::ERR_INTERNAL_ERROR, 
-            "Error while preparing " + filename + ", see log for details", 
-            __FUNCTION__);
+            "Error while preparing " + filename + ", see log for details");
     }
     //---------------------------------------------------------------------
     void Terrain::load(StreamSerialiser& stream)
@@ -1134,8 +1136,7 @@ namespace Ogre
             load();
         else
             OGRE_EXCEPT(Exception::ERR_INTERNAL_ERROR, 
-            "Error while preparing from stream, see log for details", 
-            __FUNCTION__);
+            "Error while preparing from stream, see log for details");
     }
     //---------------------------------------------------------------------
     void Terrain::load(int lodLevel, bool synchronous)
@@ -1285,33 +1286,31 @@ namespace Ogre
         Vector3 v1 (endXTS, startYTS, getHeightAtPoint(endX, startY));
         Vector3 v2 (endXTS, endYTS, getHeightAtPoint(endX, endY));
         Vector3 v3 (startXTS, endYTS, getHeightAtPoint(startX, endY));
-        // define this plane in terrain space
-        Plane plane;
+        // define a plane in terrain space
+        // do not normalise as the normalization factor cancels out in the final
+        // equation anyway
+        Vector4 plane;
         if (startY % 2)
         {
             // odd row
             bool secondTri = ((1.0 - yParam) > xParam);
             if (secondTri)
-                plane.redefine(v0, v1, v3);
+                plane = Math::calculateFaceNormalWithoutNormalize(v0, v1, v3);
             else
-                plane.redefine(v1, v2, v3);
+                plane = Math::calculateFaceNormalWithoutNormalize(v1, v2, v3);
         }
         else
         {
             // even row
             bool secondTri = (yParam > xParam);
             if (secondTri)
-                plane.redefine(v0, v2, v3);
+                plane = Math::calculateFaceNormalWithoutNormalize(v0, v2, v3);
             else
-                plane.redefine(v0, v1, v2);
+                plane = Math::calculateFaceNormalWithoutNormalize(v0, v1, v2);
         }
 
         // Solve plane equation for z
-        return (-plane.normal.x * x 
-                -plane.normal.y * y
-                - plane.d) / plane.normal.z;
-
-
+        return (-plane.x * x - plane.y * y - plane.w) / plane.z;
     }
     //---------------------------------------------------------------------
     float Terrain::getHeightAtWorldPosition(Real x, Real y, Real z) const
@@ -2489,7 +2488,7 @@ namespace Ogre
         Vector3 v3 ((Real)x, *getHeightData(x,z+1), (Real)z+1);
         Vector3 v4 ((Real)x+1, *getHeightData(x+1,z+1), (Real)z+1);
 
-        Plane p1, p2;
+        Vector4 p1, p2;
         bool oddRow = false;
         if (z % 2)
         {
@@ -2498,8 +2497,8 @@ namespace Ogre
             | \ |
             1---2
             */
-            p1.redefine(v2, v4, v3);
-            p2.redefine(v1, v2, v3);
+            p1 = Math::calculateFaceNormalWithoutNormalize(v2, v4, v3);
+            p2 = Math::calculateFaceNormalWithoutNormalize(v1, v2, v3);
             oddRow = true;
         }
         else
@@ -2509,15 +2508,15 @@ namespace Ogre
             | / |
             1---2
             */
-            p1.redefine(v1, v2, v4);
-            p2.redefine(v1, v4, v3);
+            p1 = Math::calculateFaceNormalWithoutNormalize(v1, v2, v4);
+            p2 = Math::calculateFaceNormalWithoutNormalize(v1, v4, v3);
         }
 
         // Test for intersection with the two planes. 
         // Then test that the intersection points are actually
         // still inside the triangle (with a small error margin)
         // Also check which triangle it is in
-        std::pair<bool, Real> planeInt = ray.intersects(p1);
+        RayTestResult planeInt = ray.intersects(Plane(p1));
         if (planeInt.first)
         {
             Vector3 where = ray.getPoint(planeInt.second);
@@ -2526,7 +2525,7 @@ namespace Ogre
                 && ((rel.x >= rel.z && !oddRow) || (rel.x >= (1 - rel.z) && oddRow))) // triangle bounds
                 return std::pair<bool, Vector3>(true, where);
         }
-        planeInt = ray.intersects(p2);
+        planeInt = ray.intersects(Plane(p2));
         if (planeInt.first)
         {
             Vector3 where = ray.getPoint(planeInt.second);
@@ -2853,7 +2852,7 @@ namespace Ogre
         unsigned char rgbaShift[4];
         Box box(0, 0, destBuffer->getWidth(), destBuffer->getHeight());
 
-        uint8* pDestBase = static_cast<uint8*>(destBuffer->lock(box, HardwareBuffer::HBL_NORMAL).data);
+        uint8* pDestBase = destBuffer->lock(box, HardwareBuffer::HBL_NORMAL).data;
         PixelUtil::getBitShifts(destBuffer->getFormat(), rgbaShift);
         uint8* pDest = pDestBase + rgbaShift[destChannel] / 8;
         size_t destInc = PixelUtil::getNumElemBytes(destBuffer->getFormat());
@@ -2868,7 +2867,7 @@ namespace Ogre
         }
         else
         {
-            pSrc = static_cast<uint8*>(srcBuffer->lock(box, HardwareBuffer::HBL_READ_ONLY).data);
+            pSrc = srcBuffer->lock(box, HardwareBuffer::HBL_READ_ONLY).data;
             PixelUtil::getBitShifts(srcBuffer->getFormat(), rgbaShift);
             pSrc += rgbaShift[srcChannel] / 8;
             srcInc = PixelUtil::getNumElemBytes(srcBuffer->getFormat());
@@ -2896,7 +2895,7 @@ namespace Ogre
         unsigned char rgbaShift[4];
         Box box(0, 0, buffer->getWidth(), buffer->getHeight());
 
-        uint8* pData = static_cast<uint8*>(buffer->lock(box, HardwareBuffer::HBL_NORMAL).data);
+        uint8* pData = buffer->lock(box, HardwareBuffer::HBL_NORMAL).data;
         PixelUtil::getBitShifts(buffer->getFormat(), rgbaShift);
         pData += rgbaShift[channel] / 8;
         size_t inc = PixelUtil::getNumElemBytes(buffer->getFormat());
@@ -2955,7 +2954,7 @@ namespace Ogre
                 // initialise black
                 Box box(0, 0, mLayerBlendMapSize, mLayerBlendMapSize);
                 HardwarePixelBufferSharedPtr buf = mBlendTextureList[i]->getBuffer();
-                uint8* pInit = static_cast<uint8*>(buf->lock(box, HardwarePixelBuffer::HBL_DISCARD).data);
+                uint8* pInit = buf->lock(box, HardwarePixelBuffer::HBL_DISCARD).data;
                 memset(pInit, 0, PixelUtil::getNumElemBytes(fmt) * mLayerBlendMapSize * mLayerBlendMapSize);
                 buf->unlock();
             }
@@ -3738,7 +3737,7 @@ namespace Ogre
                 // initialise to full-bright
                 Box box(0, 0, mLightmapSizeActual, mLightmapSizeActual);
                 HardwarePixelBufferSharedPtr buf = mLightmap->getBuffer();
-                uint8* pInit = static_cast<uint8*>(buf->lock(box, HardwarePixelBuffer::HBL_DISCARD).data);
+                uint8* pInit = buf->lock(box, HardwarePixelBuffer::HBL_DISCARD).data;
                 memset(pInit, 255, mLightmapSizeActual * mLightmapSizeActual);
                 buf->unlock();
 
@@ -3779,7 +3778,7 @@ namespace Ogre
                 // initialise to black
                 Box box(0, 0, mCompositeMapSizeActual, mCompositeMapSizeActual);
                 HardwarePixelBufferSharedPtr buf = mCompositeMap->getBuffer();
-                uint8* pInit = static_cast<uint8*>(buf->lock(box, HardwarePixelBuffer::HBL_DISCARD).data);
+                uint8* pInit = buf->lock(box, HardwarePixelBuffer::HBL_DISCARD).data;
                 memset(pInit, 0, mCompositeMapSizeActual * mCompositeMapSizeActual * 4);
                 buf->unlock();
 
@@ -4332,7 +4331,7 @@ namespace Ogre
         {
             if (isLoaded())
                 OGRE_EXCEPT(Exception::ERR_INVALID_STATE,
-                "Cannot alter the allocator when loaded!", __FUNCTION__);
+                "Cannot alter the allocator when loaded!");
 
             mCustomGpuBufferAllocator = alloc;
         }

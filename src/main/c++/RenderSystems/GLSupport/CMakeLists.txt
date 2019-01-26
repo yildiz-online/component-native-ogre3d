@@ -11,7 +11,9 @@
 
 # Add platform specific settings
 
-option(OGRE_GLSUPPORT_USE_EGL "use EGL for GL Context Creation instead of GLX/ WGL" FALSE)
+if(EGL_FOUND)
+  option(OGRE_GLSUPPORT_USE_EGL "use EGL for GL Context Creation instead of GLX/ WGL" FALSE)
+endif()
 
 if(ANDROID)
   file(GLOB PLATFORM_HEADERS "include/EGL/Android/*.h" "include/EGL/*.h")
@@ -52,9 +54,15 @@ elseif (APPLE)
   file(GLOB PLATFORM_HEADERS "include/OSX/*.h")
   file(GLOB PLATFORM_SOURCES "src/OSX/*.mm")
 
+  # ignore usage of deprecated OSX API for now
+  add_definitions(-Wno-deprecated-declarations)
+
+  set_source_files_properties("src/OSX/OgreOSXGL3PlusSupport.mm" 
+    PROPERTIES COMPILE_FLAGS "-Wno-cast-qual")
+
   set(NATIVE_INCLUDES
     ${CMAKE_CURRENT_SOURCE_DIR}/include/OSX 
-    ${OGRE_SOURCE_DIR}/OgreMain/include/OSX)
+    ${PROJECT_SOURCE_DIR}/OgreMain/include/OSX)
   set(PLATFORM_LIBS ${Cocoa_LIBRARY_FWK})
 elseif (UNIX)
   if(OGRE_GLSUPPORT_USE_EGL)
@@ -74,17 +82,11 @@ elseif (UNIX)
     
     set(PLATFORM_LIBS ${X11_LIBRARIES} ${X11_Xrandr_LIB} ${OPENGL_gl_LIBRARY})
   endif()
-  
-  if(NOT OGRE_STATIC)
-      add_definitions(-fPIC)
-  endif()
 endif ()
 
 file(GLOB GLSUPPORT_HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/include/*.h")
-set(GLSUPPORT_HEADERS ${GLSUPPORT_HEADERS} ${CMAKE_BINARY_DIR}/include/OgreGLSupportPrerequisites.h PARENT_SCOPE)
-set(GLSUPPORT_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/  ${CMAKE_CURRENT_SOURCE_DIR}/include/GLSL/ PARENT_SCOPE)
+set(GLSUPPORT_HEADERS ${GLSUPPORT_HEADERS} ${PROJECT_BINARY_DIR}/include/OgreGLSupportPrerequisites.h PARENT_SCOPE)
 
-include_directories(${NATIVE_INCLUDES} ${CMAKE_CURRENT_SOURCE_DIR}/include/ ${CMAKE_CURRENT_SOURCE_DIR}/include/GLSL/)
 file(GLOB GLSL_SOURCES src/GLSL/*.cpp)
 
 if(OGRE_CONFIG_ENABLE_GL_STATE_CACHE_SUPPORT)
@@ -92,7 +94,7 @@ if(OGRE_CONFIG_ENABLE_GL_STATE_CACHE_SUPPORT)
     PROPERTIES COMPILE_DEFINITIONS OGRE_ENABLE_STATE_CACHE)
 endif()
 
-ogre_add_library_to_folder(RenderSystems OgreGLSupport STATIC 
+add_library(OgreGLSupport STATIC 
     ${GLSUPPORT_HEADERS} ${PLATFORM_HEADERS} ${PLATFORM_SOURCES} ${GLSL_SOURCES} 
     src/OgreGLRenderSystemCommon.cpp 
     src/OgreGLTextureCommon.cpp
@@ -101,15 +103,19 @@ ogre_add_library_to_folder(RenderSystems OgreGLSupport STATIC
     src/OgreGLUniformCache.cpp
     src/OgreGLVertexArrayObject.cpp
 )
-target_link_libraries(OgreGLSupport OgreMain ${PLATFORM_LIBS})
+target_link_libraries(OgreGLSupport PUBLIC OgreMain PRIVATE ${PLATFORM_LIBS})
+target_include_directories(OgreGLSupport PUBLIC 
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/GLSL>"
+    PRIVATE "$<BUILD_INTERFACE:${NATIVE_INCLUDES}>")
+
+set_property(TARGET OgreGLSupport PROPERTY POSITION_INDEPENDENT_CODE ON)
 generate_export_header(OgreGLSupport 
     EXPORT_MACRO_NAME _OgreGLExport
-    EXPORT_FILE_NAME ${CMAKE_BINARY_DIR}/include/OgreGLSupportPrerequisites.h)
+    EXPORT_FILE_NAME ${PROJECT_BINARY_DIR}/include/OgreGLSupportPrerequisites.h)
 
 if (APPLE)
     set_target_properties(OgreGLSupport PROPERTIES LINK_FLAGS "-framework Cocoa -framework OpenGL")
 endif()
 
 ogre_config_component(OgreGLSupport)
-
-set(GLSUPPORT_LIBS OgreGLSupport ${PLATFORM_LIBS} PARENT_SCOPE) 

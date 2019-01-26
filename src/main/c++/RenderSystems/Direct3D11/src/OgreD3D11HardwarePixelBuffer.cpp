@@ -76,7 +76,7 @@ namespace Ogre {
             for(size_t zoffset=0; zoffset<mDepth; ++zoffset)
             {
                 String name;
-                name = "rtt/"+StringConverter::toString((size_t)mParentTexture) + "/" + StringConverter::toString(mMipLevel) + "/" + parentTexture->getName();
+                name = "rtt/"+StringConverter::toString((size_t)this) + "/" + parentTexture->getName();
 
                 RenderTexture *trt = new D3D11RenderTexture(name, this, zoffset, mDevice);
                 mSliceTRT.push_back(trt);
@@ -193,14 +193,14 @@ namespace Ogre {
         else
         {
             mDataForStaticUsageLock.resize(rval.getConsecutiveSize());
-            rval.data = mDataForStaticUsageLock.data();
+            rval.data = (uchar*)mDataForStaticUsageLock.data();
         }
         // save without offset
         mCurrentLock = rval;
         mCurrentLockOptions = options;
 
         // add the offset, so the right memory will be changed
-		rval.data = static_cast<int*>(rval.data) + offset;	// TODO: why offsetInBytes is added to (int*) pointer ???
+		rval.data = (uchar*)((int*)rval.data + offset);	// TODO: why offsetInBytes is added to (int*) pointer ???
 
         return rval;
     }
@@ -233,7 +233,7 @@ namespace Ogre {
             OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, errorDescription, "D3D11HardwarePixelBuffer::_unmapstaticbuffer");
         }
 
-        mDataForStaticUsageLock.swap(vector<int8>::type()); // i.e. shrink_to_fit
+        mDataForStaticUsageLock.shrink_to_fit();
     }
     //-----------------------------------------------------------------------------  
     void D3D11HardwarePixelBuffer::_unmapstagingbuffer(bool copyback)
@@ -344,7 +344,7 @@ namespace Ogre {
         // convert to pixelbuffer's native format if necessary
         if(src.format != mFormat)
         {
-            vector<uint8>::type buffer;
+            std::vector<uint8> buffer;
             buffer.resize(PixelUtil::getMemorySize(src.getWidth(), src.getHeight(), src.getDepth(), mFormat));
             PixelBox converted = PixelBox(src.getWidth(), src.getHeight(), src.getDepth(), mFormat, buffer.data());
             PixelUtil::bulkPixelConversion(src, converted);

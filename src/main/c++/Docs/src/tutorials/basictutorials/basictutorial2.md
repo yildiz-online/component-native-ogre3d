@@ -17,7 +17,7 @@ is not a SceneNode (it actually inherits from the Frustum class), but for moveme
 like a SceneNode.
 
 @note Starting from version 1.10 functionality related to rotate and translate camera are deprecated. 
-You should attach camera to Ogre::SceneNode and do all transofrmation with this node.
+You should attach camera to Ogre::SceneNode and do all transformation with this node.
 
 # Creating a Camera {#bt2CreatingaCamera}
 We will now cover camera creation part which we just applied in previous tutorial. We remeber that now we need to have SceneNode for camera. The first step will be doing is creating that SceneNode and asking the SceneManager to create a new Camera. Add the following to create SceneNode and Camera:
@@ -124,12 +124,6 @@ Next we will set the type of the light to spotlight.
 The spotlight requires both a position and a direction - remember it acts like a flashlight. We'll place the spotlight above the right shoulder of the ninja shining down on him at a 45 degree angle.
 
 @snippet Samples/Tutorials/BasicTutorial2.cpp spotlightposrot
-
-@note You must be wondering why we call setDirection for light source and then call the same method for related
-SceneNode. As long as setDirection is deprecated for Light it has to be attached to SceneNode. Since SceneNode
-default rotation is NEGATIVE\_UNIT\_Z we need to set same value for Light. Direction for light by default is not
-NEGATIVE\_UNIT\_Z but in the future releases it will be replaced with this value. So this extra call
-of setDirection for Light could be deleted in future. In other words we need this extra move for future compatibilty.
 
 ![](bt2_light_dir_1.png)
 

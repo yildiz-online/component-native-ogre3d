@@ -6,8 +6,8 @@
  */
 
 #include "OgreAdvancedRenderControls.h"
-#include <OgreTextureManager.h>
-#include <OgreMaterialManager.h>
+#include "OgreTextureManager.h"
+#include "OgreMaterialManager.h"
 
 #include "OgreTrays.h"
 
@@ -86,18 +86,21 @@ bool AdvancedRenderControls::keyPressed(const KeyboardEvent& evt) {
         Ogre::TextureFilterOptions tfo;
         unsigned int aniso;
 
+        Ogre::FilterOptions mip = Ogre::MaterialManager::getSingleton().getDefaultTextureFiltering(Ogre::FT_MIP);
+
         switch (Ogre::MaterialManager::getSingleton().getDefaultTextureFiltering(Ogre::FT_MAG)) {
-        case Ogre::TFO_BILINEAR:
-            newVal = "Trilinear";
-            tfo = Ogre::TFO_TRILINEAR;
-            aniso = 1;
+        case Ogre::FO_LINEAR:
+            if (mip == Ogre::FO_POINT) {
+                newVal = "Trilinear";
+                tfo = Ogre::TFO_TRILINEAR;
+                aniso = 1;
+            } else {
+                newVal = "Anisotropic";
+                tfo = Ogre::TFO_ANISOTROPIC;
+                aniso = 8;
+            }
             break;
-        case Ogre::TFO_TRILINEAR:
-            newVal = "Anisotropic";
-            tfo = Ogre::TFO_ANISOTROPIC;
-            aniso = 8;
-            break;
-        case Ogre::TFO_ANISOTROPIC:
+        case Ogre::FO_ANISOTROPIC:
             newVal = "None";
             tfo = Ogre::TFO_NONE;
             aniso = 1;
@@ -167,6 +170,7 @@ bool AdvancedRenderControls::keyPressed(const KeyboardEvent& evt) {
             }
         }
     }
+#   ifdef RTSHADER_SYSTEM_BUILD_EXT_SHADERS
     // Toggles per pixel per light model.
     else if (key == SDLK_F3) {
         static bool usePerPixelLighting = true;
@@ -215,7 +219,7 @@ bool AdvancedRenderControls::keyPressed(const KeyboardEvent& evt) {
             mDetailsPanel->setParamValue(12, "Vertex");
         usePerPixelLighting = !usePerPixelLighting;
     }
-
+#   endif
     // Switch vertex shader outputs compaction policy.
     else if (key == SDLK_F4) {
         switch (mShaderGenerator->getVertexShaderOutputsCompactPolicy()) {
@@ -245,6 +249,7 @@ bool AdvancedRenderControls::keyPressed(const KeyboardEvent& evt) {
 }
 
 void AdvancedRenderControls::frameRendered(const Ogre::FrameEvent& evt) {
+    using namespace Ogre;
     if (!mTrayMgr->isDialogVisible() && mDetailsPanel->isVisible())
     {
         // if details panel is visible, then update its contents
@@ -257,8 +262,8 @@ void AdvancedRenderControls::frameRendered(const Ogre::FrameEvent& evt) {
         mDetailsPanel->setParamValue(7, Ogre::StringConverter::toString(mCamera->getDerivedOrientation().z));
 
 #ifdef OGRE_BUILD_COMPONENT_RTSHADERSYSTEM
-        mDetailsPanel->setParamValue(14, Ogre::StringConverter::toString(mShaderGenerator->getVertexShaderCount()));
-        mDetailsPanel->setParamValue(15, Ogre::StringConverter::toString(mShaderGenerator->getFragmentShaderCount()));
+        mDetailsPanel->setParamValue(14, StringConverter::toString(mShaderGenerator->getShaderCount(GPT_VERTEX_PROGRAM)));
+        mDetailsPanel->setParamValue(15, StringConverter::toString(mShaderGenerator->getShaderCount(GPT_FRAGMENT_PROGRAM)));
 #endif
     }
 }

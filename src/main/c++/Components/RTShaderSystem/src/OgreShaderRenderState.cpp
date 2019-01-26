@@ -24,16 +24,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 -----------------------------------------------------------------------------
 */
-#include <algorithm> // for std::sort
-#include "OgreShaderPrerequisites.h"
-#include "OgreShaderRenderState.h"
-#include "OgreShaderGenerator.h"
-#include "OgreLogManager.h"
-#include "OgreShaderProgram.h"
-#include "OgreShaderProgramSet.h"
-#include "OgreShaderProgramManager.h"
-#include "OgreShaderFFPRenderState.h"
-
+#include "OgreShaderPrecompiledHeaders.h"
 
 namespace Ogre {
 namespace RTShader {
@@ -172,8 +163,8 @@ bool TargetRenderState::createCpuPrograms()
     RTShader::Function* vsMainFunc = NULL;
     RTShader::Function* psMainFunc = NULL;
 
-    programSet->setCpuVertexProgram(vsProgram);
-    programSet->setCpuFragmentProgram(psProgram);
+    programSet->setCpuProgram(vsProgram, GPT_VERTEX_PROGRAM);
+    programSet->setCpuProgram(psProgram, GPT_FRAGMENT_PROGRAM);
 
     // Create entry point functions.
     vsMainFunc = vsProgram->createFunction("main", "Vertex Program Entry point", Function::FFT_VS_MAIN);

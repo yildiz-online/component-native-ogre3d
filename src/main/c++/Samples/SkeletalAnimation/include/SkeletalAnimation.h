@@ -123,9 +123,6 @@ public:
     {
         for (int i = 0; i < NUM_MODELS; i++)
         {
-            // update sneaking animation based on speed
-            mAnimStates[i]->addTime(mAnimSpeeds[i] * evt.timeSinceLastFrame);
-
             if (mAnimStates[i]->getTimePosition() >= ANIM_CHOP)   // when it's time to loop...
             {
                 /* We need reposition the scene node origin, since the animation includes translation.
@@ -201,7 +198,6 @@ protected:
         SceneNode* ln = mSceneMgr->getRootSceneNode()->createChildSceneNode(pos);
         ln->attachObject(l);
         l->setType(Light::LT_SPOTLIGHT);
-        l->setDirection(Vector3::NEGATIVE_UNIT_Z);
         ln->setDirection(-pos);
         l->setDiffuseColour(0.0, 0.0, 0.5);
         bbs->createBillboard(pos)->setColour(l->getDiffuseColour());
@@ -210,7 +206,6 @@ protected:
         // add a green spotlight.
         l = mSceneMgr->createLight();
         l->setType(Light::LT_SPOTLIGHT);
-        l->setDirection(Vector3::NEGATIVE_UNIT_Z);
         pos = Vector3(0, 150, -100);
         ln = mSceneMgr->getRootSceneNode()->createChildSceneNode(pos);
         ln->attachObject(l);
@@ -250,6 +245,8 @@ protected:
                                          ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,
                                          HardwareBuffer::HBU_DYNAMIC_WRITE_ONLY,
                                          HardwareBuffer::HBU_DYNAMIC_WRITE_ONLY, true, true);
+
+        auto& controllerMgr = ControllerManager::getSingleton();
 
         for (int i = 0; i < NUM_MODELS; i++)
         {
@@ -295,7 +292,10 @@ protected:
             as = ent->getAnimationState("Sneak");
             as->setEnabled(true);
             as->setLoop(false);
-            mAnimSpeeds.push_back(Math::RangeRandom(0.5, 1.5));
+
+            controllerMgr.createController(controllerMgr.getFrameTimeSource(),
+                                           AnimationStateControllerValue::create(as, true),
+                                           ScaleControllerFunction::create(Math::RangeRandom(0.5, 1.5)));
             mAnimStates.push_back(as);
         }
 
@@ -381,7 +381,6 @@ protected:
     {
         mModelNodes.clear();
         mAnimStates.clear();
-        mAnimSpeeds.clear();
         MeshManager::getSingleton().remove("floor", ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
         mSceneMgr->destroyEntity("Jaiqua");
 
@@ -406,7 +405,6 @@ protected:
 
     std::vector<SceneNode*> mModelNodes;
     std::vector<AnimationState*> mAnimStates;
-    std::vector<Real> mAnimSpeeds;
 
     Vector3 mSneakStartPos;
     Vector3 mSneakEndPos;

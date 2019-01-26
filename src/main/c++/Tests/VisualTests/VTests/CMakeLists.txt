@@ -23,18 +23,12 @@ set(SOURCE_FILES
     src/VTestPlugin.cpp)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
-include_directories(${OGRE_SOURCE_DIR}/Samples/Common/include)
-include_directories(${OGRE_SOURCE_DIR}/Samples/Browser/include)
-include_directories(${OGRE_SOURCE_DIR}/Tests/VisualTests/Common/include)
-
-ogre_add_component_include_dir(Terrain)
-ogre_add_component_include_dir(Paging)
-ogre_add_component_include_dir(MeshLodGenerator)
-ogre_add_component_include_dir(RTShaderSystem)
-ogre_add_component_include_dir(Overlay)
+include_directories(${PROJECT_SOURCE_DIR}/Samples/Common/include)
+include_directories(${PROJECT_SOURCE_DIR}/Samples/Browser/include)
+include_directories(${PROJECT_SOURCE_DIR}/Tests/VisualTests/Common/include)
 
 add_library(VTests ${OGRE_LIB_TYPE} ${HEADER_FILES} ${SOURCE_FILES} )
-target_link_libraries(VTests ${OGRE_LIBRARIES} ${SDL2_LIBRARY} OgreOverlay OgreRTShaderSystem)
+target_link_libraries(VTests ${OGRE_LIBRARIES} OgreBites OgreOverlay OgreRTShaderSystem)
 ogre_config_sample_lib(VTests)
 
 if (APPLE AND NOT APPLE_IOS)

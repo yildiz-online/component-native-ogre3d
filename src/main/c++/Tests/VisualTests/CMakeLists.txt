@@ -11,8 +11,9 @@
 
 if (OGRE_BUILD_COMPONENT_RTSHADERSYSTEM)
     add_definitions(-DINCLUDE_RTSHADER_SYSTEM)
-    ogre_add_component_include_dir(RTShaderSystem)
 endif ()
+
+add_definitions(${OGRE_VISIBILITY_FLAGS})
 
 if(NOT ANDROID)
     # add Context directory
@@ -47,9 +48,6 @@ if (OGRE_BUILD_RENDERSYSTEM_D3D9)
 endif ()
 if (OGRE_BUILD_RENDERSYSTEM_D3D11)
   list(APPEND TEST_RENDER_SYSTEMS "Direct3D11 Rendering Subsystem")
-endif ()
-if (OGRE_BUILD_RENDERSYSTEM_GLES)
-  list(APPEND TEST_RENDER_SYSTEMS "OpenGL ES 1.x Rendering Subsystem")
 endif ()
 if (OGRE_BUILD_RENDERSYSTEM_GLES2)
   list(APPEND TEST_RENDER_SYSTEMS "OpenGL ES 2.x Rendering Subsystem")

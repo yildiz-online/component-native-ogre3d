@@ -26,18 +26,7 @@ THE SOFTWARE.
 -----------------------------------------------------------------------------
 */
 #include "OgreStableHeaders.h"
-#include "OgreManualObject.h"
-#include "OgreException.h"
-#include "OgreMaterialManager.h"
-#include "OgreRoot.h"
-#include "OgreRenderSystem.h"
-#include "OgreHardwareBufferManager.h"
 #include "OgreEdgeListBuilder.h"
-#include "OgreMeshManager.h"
-#include "OgreMesh.h"
-#include "OgreSubMesh.h"
-#include "OgreLogManager.h"
-#include "OgreTechnique.h"
 
 namespace Ogre {
 
@@ -214,7 +203,7 @@ namespace Ogre {
         position(pos.x, pos.y, pos.z);
     }
     //-----------------------------------------------------------------------------
-    void ManualObject::position(Real x, Real y, Real z)
+    void ManualObject::position(float x, float y, float z)
     {
         if (!mCurrentSection)
         {
@@ -256,7 +245,7 @@ namespace Ogre {
         normal(norm.x, norm.y, norm.z);
     }
     //-----------------------------------------------------------------------------
-    void ManualObject::normal(Real x, Real y, Real z)
+    void ManualObject::normal(float x, float y, float z)
     {
         if (!mCurrentSection)
         {
@@ -282,7 +271,7 @@ namespace Ogre {
         tangent(tan.x, tan.y, tan.z);
     }
     //-----------------------------------------------------------------------------
-    void ManualObject::tangent(Real x, Real y, Real z)
+    void ManualObject::tangent(float x, float y, float z)
     {
         if (!mCurrentSection)
         {
@@ -303,7 +292,7 @@ namespace Ogre {
     }
 
     //-----------------------------------------------------------------------------
-    void ManualObject::textureCoord(Real u)
+    void ManualObject::textureCoord(float u)
     {
         if (!mCurrentSection)
         {
@@ -325,7 +314,7 @@ namespace Ogre {
 
     }
     //-----------------------------------------------------------------------------
-    void ManualObject::textureCoord(Real u, Real v)
+    void ManualObject::textureCoord(float u, float v)
     {
         if (!mCurrentSection)
         {
@@ -347,7 +336,7 @@ namespace Ogre {
         ++mTexCoordIndex;
     }
     //-----------------------------------------------------------------------------
-    void ManualObject::textureCoord(Real u, Real v, Real w)
+    void ManualObject::textureCoord(float u, float v, float w)
     {
         if (!mCurrentSection)
         {
@@ -370,7 +359,7 @@ namespace Ogre {
         ++mTexCoordIndex;
     }
     //-----------------------------------------------------------------------------
-    void ManualObject::textureCoord(Real x, Real y, Real z, Real w)
+    void ManualObject::textureCoord(float x, float y, float z, float w)
     {
         if (!mCurrentSection)
         {
@@ -414,7 +403,7 @@ namespace Ogre {
         colour(col.r, col.g, col.b, col.a);
     }
     //-----------------------------------------------------------------------------
-    void ManualObject::colour(Real r, Real g, Real b, Real a)
+    void ManualObject::colour(float r, float g, float b, float a)
     {
         if (!mCurrentSection)
         {
@@ -548,15 +537,17 @@ namespace Ogre {
             case VET_FLOAT2:
             case VET_FLOAT3:
             case VET_FLOAT4:
+                OgreAssert(elem.getSemantic() != VES_DIFFUSE, "must use VET_COLOUR");
                 elem.baseVertexPointerToElement(pBase, &pFloat);
                 break;
             case VET_COLOUR:
             case VET_COLOUR_ABGR:
             case VET_COLOUR_ARGB:
+                OgreAssert(elem.getSemantic() == VES_DIFFUSE, "must use VES_DIFFUSE");
                 elem.baseVertexPointerToElement(pBase, &pRGBA);
                 break;
             default:
-                // nop ?
+                OgreAssert(false, "invalid element type");
                 break;
             };
 
@@ -607,7 +598,7 @@ namespace Ogre {
                 }
                 break;
             default:
-                // nop ?
+                OgreAssert(false, "invalid semantic");
                 break;
             };
 
@@ -957,10 +948,9 @@ namespace Ogre {
 
         // Calculate the object space light details
         Vector4 lightPos = light->getAs4DVector();
-        Matrix4 world2Obj = mParentNode->_getFullTransform().inverseAffine();
-        lightPos = world2Obj.transformAffine(lightPos);
-        Matrix3 world2Obj3x3;
-        world2Obj.extract3x3Matrix(world2Obj3x3);
+        Affine3 world2Obj = mParentNode->_getFullTransform().inverse();
+        lightPos = world2Obj * lightPos;
+        Matrix3 world2Obj3x3 = world2Obj.linear();
         extrusionDistance *= Math::Sqrt(std::min(std::min(world2Obj3x3.GetColumn(0).squaredLength(), world2Obj3x3.GetColumn(1).squaredLength()), world2Obj3x3.GetColumn(2).squaredLength()));
 
         // Init shadow renderable list if required (only allow indexed)

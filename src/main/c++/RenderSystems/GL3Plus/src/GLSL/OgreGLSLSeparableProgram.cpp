@@ -141,7 +141,7 @@ namespace Ogre
             {
                 GLint linkStatus = 0;
 
-                String programName = program->getName();
+                uint32 hash = program->_getHash();
 
                 GLuint programHandle = program->getGLProgramHandle();
 
@@ -150,11 +150,11 @@ namespace Ogre
                 OGRE_CHECK_GL_ERROR(glProgramParameteri(programHandle, GL_PROGRAM_BINARY_RETRIEVABLE_HINT, GL_TRUE));
 
                 // Use precompiled program if possible.
-                bool microcodeAvailableInCache = GpuProgramManager::getSingleton().isMicrocodeAvailableInCache(programName);
+                bool microcodeAvailableInCache = GpuProgramManager::getSingleton().isMicrocodeAvailableInCache(hash);
                 if (microcodeAvailableInCache)
                 {
                     GpuProgramManager::Microcode cacheMicrocode =
-                        GpuProgramManager::getSingleton().getMicrocodeFromCache(programName);
+                        GpuProgramManager::getSingleton().getMicrocodeFromCache(hash);
                     cacheMicrocode->seek(0);
 
                     GLenum binaryFormat = 0;
@@ -169,22 +169,13 @@ namespace Ogre
 
                     OGRE_CHECK_GL_ERROR(glGetProgramiv(programHandle, GL_LINK_STATUS, &linkStatus));
                     if (!linkStatus)
-                        logObjectInfo("Could not use cached binary " + programName, programHandle);
+                        logObjectInfo("Could not use cached binary " + program->getName(), programHandle);
                 }
 
                 // Compilation needed if precompiled program is
                 // unavailable or failed to link.
                 if (!linkStatus)
                 {
-                    if(!program->compile(true)) {
-                        LogManager::getSingleton().stream(LML_CRITICAL)
-                                << program->getShaderTypeLabel(program->getType()) << " Shader "
-                                << program->getName()
-                                << " failed to compile. See compile log above for details.";
-                        mTriedToLinkAndFailed = true;
-                        return;
-                    }
-
                     if( program->getType() == GPT_VERTEX_PROGRAM )
                         bindFixedAttributes( programHandle );
 
@@ -199,9 +190,8 @@ namespace Ogre
                 program->setLinked(linkStatus);
                 mLinked = linkStatus;
 
-                mTriedToLinkAndFailed = !linkStatus;
-
-                logObjectInfo( getCombinedName() + String("GLSL program result : "), programHandle );
+                if(!mLinked)
+                	logObjectInfo( getCombinedName() + String("GLSL program result : "), programHandle );
 
                 if (program->getType() == GPT_VERTEX_PROGRAM)
                     setSkeletalAnimationIncluded(program->isSkeletalAnimationIncluded());
@@ -231,7 +221,7 @@ namespace Ogre
                     // newMicrocode->read(&binaryFormat, sizeof(GLenum));
                     // newMicrocode->read(&binaryData[0], binaryLength);
 
-                    GpuProgramManager::getSingleton().addMicrocodeToCache(programName, newMicrocode);
+                    GpuProgramManager::getSingleton().addMicrocodeToCache(hash, newMicrocode);
                 }
             }
             else
@@ -245,7 +235,7 @@ namespace Ogre
 
     void GLSLSeparableProgram::activate(void)
     {
-        if (!mLinked && !mTriedToLinkAndFailed)
+        if (!mLinked)
         {
             compileAndLink();
 
@@ -292,7 +282,7 @@ namespace Ogre
                                               uint16 mask, GpuProgramType fromProgType)
     {
         // determine if we need to transpose matrices when binding
-        int transpose = GL_TRUE;
+        bool transpose = GL_TRUE;
         if ((fromProgType == GPT_FRAGMENT_PROGRAM && mVertexShader && (!getVertexShader()->getColumnMajorMatrices())) ||
             (fromProgType == GPT_VERTEX_PROGRAM && mFragmentShader && (!mFragmentShader->getColumnMajorMatrices())) ||
             (fromProgType == GPT_GEOMETRY_PROGRAM && mGeometryShader && (!mGeometryShader->getColumnMajorMatrices())) ||
@@ -305,35 +295,39 @@ namespace Ogre
 
         GLuint progID = 0;
         GLUniformCache * uniformCache=0;
-        if (fromProgType == GPT_VERTEX_PROGRAM)
+        if (fromProgType == GPT_VERTEX_PROGRAM && getVertexShader())
         {
             progID = getVertexShader()->getGLProgramHandle();
             uniformCache = getVertexShader()->getUniformCache();
         }
-        else if (fromProgType == GPT_FRAGMENT_PROGRAM)
+        else if (fromProgType == GPT_FRAGMENT_PROGRAM && mFragmentShader)
         {
             progID = mFragmentShader->getGLProgramHandle();
             uniformCache = mFragmentShader->getUniformCache();
         }
-        else if (fromProgType == GPT_GEOMETRY_PROGRAM)
+        else if (fromProgType == GPT_GEOMETRY_PROGRAM && mGeometryShader)
         {
             progID = mGeometryShader->getGLProgramHandle();
             uniformCache = mGeometryShader->getUniformCache();
         }
-        else if (fromProgType == GPT_HULL_PROGRAM)
+        else if (fromProgType == GPT_HULL_PROGRAM && mHullShader)
         {
             progID = mHullShader->getGLProgramHandle();
             uniformCache = mHullShader->getUniformCache();
         }
-        else if (fromProgType == GPT_DOMAIN_PROGRAM)
+        else if (fromProgType == GPT_DOMAIN_PROGRAM && mDomainShader)
         {
             progID = mDomainShader->getGLProgramHandle();
             uniformCache = mDomainShader->getUniformCache();
         }
-        else if (fromProgType == GPT_COMPUTE_PROGRAM)
+        else if (fromProgType == GPT_COMPUTE_PROGRAM && mComputeShader)
         {
             progID = mComputeShader->getGLProgramHandle();
             uniformCache = mComputeShader->getUniformCache();
+        }
+        else
+        {
+            OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, "invalid program type");
         }
 
         // Iterate through uniform reference list and update uniform values

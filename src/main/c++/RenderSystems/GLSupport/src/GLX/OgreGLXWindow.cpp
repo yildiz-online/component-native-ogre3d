@@ -33,7 +33,6 @@
 #include "OgreException.h"
 #include "OgreLogManager.h"
 #include "OgreStringConverter.h"
-#include "OgreWindowEventUtilities.h"
 #include "OgreViewport.h"
 
 #include "OgreGLXContext.h"
@@ -123,6 +122,8 @@ namespace Ogre
         int top  = DisplayHeight(xDisplay, DefaultScreen(xDisplay))/2 - height/2;
         String border;
 
+        int minBufferSize = 16;
+
         mIsFullScreen = fullScreen;
 
         if(miscParams)
@@ -178,6 +179,9 @@ namespace Ogre
             if((opt = miscParams->find("title")) != end)
                 title = opt->second;
 
+            if((opt = miscParams->find("minColourBufferSize")) != end)
+                minBufferSize = StringConverter::parseInt(opt->second);
+
             if ((opt = miscParams->find("externalGLControl")) != end)
                 mIsExternalGLControl = StringConverter::parseBool(opt->second);
             
@@ -192,17 +196,17 @@ namespace Ogre
 
             if((opt = miscParams->find("parentWindowHandle")) != end)
             {
-                vector<String>::type tokens = StringUtil::split(opt->second, " :");
+                std::vector<String> tokens = StringUtil::split(opt->second, " :");
 
                 if (tokens.size() == 3)
                 {
                     // deprecated display:screen:xid format
-                    parentWindow = StringConverter::parseUnsignedLong(tokens[2]);
+                    StringConverter::parse(tokens[2], parentWindow);
                 }
                 else
                 {
                     // xid format
-                    parentWindow = StringConverter::parseUnsignedLong(tokens[0]);
+                    StringConverter::parse(tokens[0], parentWindow);
                 }
 
                 // reset drawable in case currentGLContext was used
@@ -211,7 +215,7 @@ namespace Ogre
             }
             else if((opt = miscParams->find("externalWindowHandle")) != end)
             {
-                vector<String>::type tokens = StringUtil::split(opt->second, " :");
+                std::vector<String> tokens = StringUtil::split(opt->second, " :");
 
                 LogManager::getSingleton().logMessage(
                     "GLXWindow::create: The externalWindowHandle parameter is deprecated.\n"
@@ -221,17 +225,17 @@ namespace Ogre
                 {
                     // Old display:screen:xid format
                     // The old GLX code always created a "parent" window in this case:
-                    parentWindow = StringConverter::parseUnsignedLong(tokens[2]);
+                    StringConverter::parse(tokens[2], parentWindow);
                 }
                 else if (tokens.size() == 4)
                 {
                     // Old display:screen:xid:visualinfo format
-                    externalWindow = StringConverter::parseUnsignedLong(tokens[2]);
+                    StringConverter::parse(tokens[2], externalWindow);
                 }
                 else
                 {
                     // xid format
-                    externalWindow = StringConverter::parseUnsignedLong(tokens[0]);
+                    StringConverter::parse(tokens[0], externalWindow);
                 }
             }
 
@@ -288,12 +292,22 @@ namespace Ogre
 
         if (! fbConfig)
         {
+            int minComponentSize = minBufferSize;
+            int maxComponentSize = 8;
+
+            bool fourComponents = (minBufferSize % 3) != 0;
+            minComponentSize /= fourComponents ? 4 : 3;
+
+            if(minComponentSize > maxComponentSize)
+                maxComponentSize = minComponentSize;
+
             int minAttribs[] = {
                 GLX_DRAWABLE_TYPE,  GLX_WINDOW_BIT,
                 GLX_RENDER_TYPE,        GLX_RGBA_BIT,
-                GLX_RED_SIZE,      1,
-                GLX_BLUE_SIZE,    1,
-                GLX_GREEN_SIZE,  1,
+                GLX_RED_SIZE,      minComponentSize,
+                GLX_BLUE_SIZE,    minComponentSize,
+                GLX_GREEN_SIZE,  minComponentSize,
+                GLX_ALPHA_SIZE,  fourComponents ? minComponentSize : 0,
 #if OGRE_NO_QUAD_BUFFER_STEREO == 0
 				GLX_STEREO, mStereoEnabled ? True : False,
 #endif
@@ -303,6 +317,10 @@ namespace Ogre
 
             int maxAttribs[] = {
                 GLX_SAMPLES,            static_cast<int>(samples),
+                GLX_RED_SIZE,      maxComponentSize,
+                GLX_BLUE_SIZE,    maxComponentSize,
+                GLX_GREEN_SIZE,  maxComponentSize,
+                GLX_ALPHA_SIZE,  fourComponents ? maxComponentSize : 0,
                 GLX_DOUBLEBUFFER,   1,
                 GLX_STENCIL_SIZE,   INT_MAX,
                 GLX_FRAMEBUFFER_SRGB_CAPABLE_EXT, 1,
@@ -328,7 +346,17 @@ namespace Ogre
             }
             mHwGamma = gamma;
 
-            LogManager::getSingleton().logMessage("Actual frame buffer FSAA: " + StringConverter::toString(mFSAA) + ", gamma: " + StringConverter::toString(mHwGamma));
+            int bufferSize = 0;
+            for(int i = GLX_RED_SIZE; i < GLX_ALPHA_SIZE + 1; i++)
+            {
+                int val = 0;
+                mGLSupport->getFBConfigAttrib(fbConfig, i, &val);
+                bufferSize += val;
+            }
+
+            LogManager::getSingleton().stream()
+                << "Actual frame buffer FSAA: " << mFSAA << ", gamma: " << mHwGamma
+                << ", colourBufferSize: " << bufferSize;
         }
         else
         {
@@ -421,8 +449,8 @@ namespace Ogre
                 }
 
                 XTextProperty titleprop;
-                char *lst = const_cast<char *>(title.c_str());
-                XStringListToTextProperty((char **)&lst, 1, &titleprop);
+                char *lst = &title[0];
+                XStringListToTextProperty(&lst, 1, &titleprop);
                 XSetWMProperties(xDisplay, mWindow, &titleprop, NULL, NULL, 0, sizeHints, wmHints, NULL);
 
                 XFree(titleprop.value);
@@ -447,8 +475,6 @@ namespace Ogre
             // and also calls setFullScreen if appropriate.
             setHidden(hidden);
             XFlush(xDisplay);
-
-            WindowEventUtilities::_addRenderWindow(this);
         }
 
         mContext = new GLXContext(mGLSupport, fbConfig, glxDrawable, glxContext);
@@ -482,9 +508,6 @@ namespace Ogre
 
         mClosed = true;
         mActive = false;
-
-        if (! mIsExternal)
-            WindowEventUtilities::_removeRenderWindow(this);
 
         if (mIsFullScreen)
         {
@@ -650,18 +673,17 @@ namespace Ogre
 
         if(width != 0 && height != 0)
         {
-            if (!mIsExternal)
+            if (!mIsTopLevel)
             {
                 XResizeWindow(mGLSupport->getXDisplay(), mWindow, width, height);
+                XFlush(mGLSupport->getXDisplay());
             }
-            else
-            {
-                mWidth = width;
-                mHeight = height;
 
-                for (ViewportList::iterator it = mViewportList.begin(); it != mViewportList.end(); ++it)
-                    (*it).second->_updateDimensions();
-            }
+            mWidth = width;
+            mHeight = height;
+
+            for (ViewportList::iterator it = mViewportList.begin(); it != mViewportList.end(); ++it)
+                (*it).second->_updateDimensions();
         }
     }
 
@@ -674,29 +696,36 @@ namespace Ogre
         Display* xDisplay = mGLSupport->getXDisplay();
         XWindowAttributes windowAttrib;
 
+        Window parent, root, *children;
+        uint nChildren;
+
+        XQueryTree(xDisplay, mWindow, &root, &parent, &children, &nChildren);
+
+        if (children)
+            XFree(children);
+
+        XGetWindowAttributes(xDisplay, parent, &windowAttrib);
+
         if (mIsTopLevel && !mIsFullScreen)
         {
-            Window parent, root, *children;
-            uint nChildren;
-
-            XQueryTree(xDisplay, mWindow, &root, &parent, &children, &nChildren);
-
-            if (children)
-                XFree(children);
-
-            XGetWindowAttributes(xDisplay, parent, &windowAttrib);
-
+            // offset from window decorations
             mLeft = windowAttrib.x;
             mTop  = windowAttrib.y;
+            // w/ h of the actual renderwindow
+            XGetWindowAttributes(xDisplay, mWindow, &windowAttrib);
         }
-
-        XGetWindowAttributes(xDisplay, mWindow, &windowAttrib);
 
         if (mWidth == (size_t)windowAttrib.width && mHeight == (size_t)windowAttrib.height)
             return;
 
         mWidth = windowAttrib.width;
         mHeight = windowAttrib.height;
+
+        if(!mIsTopLevel)
+        {
+            XResizeWindow(xDisplay, mWindow, mWidth, mHeight);
+            XFlush(xDisplay);
+        }
 
         for (ViewportList::iterator it = mViewportList.begin(); it != mViewportList.end(); ++it)
             (*it).second->_updateDimensions();
@@ -747,6 +776,11 @@ namespace Ogre
     }
 
     //-------------------------------------------------------------------------------------------------//
+    PixelFormat GLXWindow::suggestPixelFormat() const
+    {
+        return mGLSupport->getContextProfile() == GLNativeSupport::CONTEXT_ES ? PF_BYTE_RGBA : PF_BYTE_RGB;
+    }
+
     void GLXWindow::copyContentsToMemory(const Box& src, const PixelBox &dst, FrameBuffer buffer)
     {
         if (mClosed)
@@ -790,4 +824,6 @@ namespace Ogre
             mIsFullScreen = fullscreen;
         }
     }
+
+    GLContext* GLXWindow::getContext() const { return mContext; }
 }

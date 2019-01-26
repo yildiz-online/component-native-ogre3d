@@ -60,7 +60,7 @@ void RTShaderSRSSegmentedLights::updateGpuProgramsParams(Renderable* rend, Pass*
     if ((mLightParamsList.empty()) && (!mUseSegmentedLightTexture))
         return;
 
-    const Matrix4& matWorld = source->getWorldMatrix();
+    const Affine3& matWorld = source->getWorldMatrix();
     Light::LightTypes curLightType = Light::LT_DIRECTIONAL; 
     unsigned int curSearchLightIndex = 0;
 
@@ -105,14 +105,14 @@ void RTShaderSRSSegmentedLights::updateGpuProgramsParams(Renderable* rend, Pass*
         case Light::LT_DIRECTIONAL:
 
             // Update light direction.
-            vParameter = matWorld.transformAffine(srcLight->getAs4DVector(true));
+            vParameter = matWorld * srcLight->getAs4DVector(true);
             curParams.mDirection->setGpuParameter(vParameter.ptr(),3,1);
             break;
 
         case Light::LT_POINT:
 
             // Update light position.
-            vParameter = matWorld.transformAffine(srcLight->getAs4DVector(true));
+            vParameter = matWorld * srcLight->getAs4DVector(true);
             curParams.mPosition->setGpuParameter(vParameter.ptr(),3,1);
 
             // Update light attenuation parameters.
@@ -122,17 +122,14 @@ void RTShaderSRSSegmentedLights::updateGpuProgramsParams(Renderable* rend, Pass*
         case Light::LT_SPOTLIGHT:
             {                       
                 Ogre::Vector3 vec3;
-                Ogre::Matrix3 matWorldIT;
-
 
                 // Update light position.
-                vParameter = matWorld.transformAffine(srcLight->getAs4DVector(true));
+                vParameter = matWorld * srcLight->getAs4DVector(true);
                 curParams.mPosition->setGpuParameter(vParameter.ptr(),3,1);
 
 
                 // Update light direction.
-                source->getInverseTransposeWorldMatrix().extract3x3Matrix(matWorldIT);
-                vec3 = matWorldIT * srcLight->getDerivedDirection();
+                vec3 = source->getInverseTransposeWorldMatrix().linear() * srcLight->getDerivedDirection();
                 vec3.normalise();
 
                 vParameter.x = -vec3.x;
@@ -213,31 +210,31 @@ bool RTShaderSRSSegmentedLights::resolveParameters(ProgramSet* programSet)
 //-----------------------------------------------------------------------
 bool RTShaderSRSSegmentedLights::resolveGlobalParameters(ProgramSet* programSet)
 {
-    Program* vsProgram = programSet->getCpuVertexProgram();
-    Program* psProgram = programSet->getCpuFragmentProgram();
+    Program* vsProgram = programSet->getCpuProgram(GPT_VERTEX_PROGRAM);
+    Program* psProgram = programSet->getCpuProgram(GPT_FRAGMENT_PROGRAM);
     Function* vsMain = vsProgram->getEntryPointFunction();
     Function* psMain = psProgram->getEntryPointFunction();
 
 
     // Resolve world IT matrix.
-    mWorldITMatrix = vsProgram->resolveAutoParameterInt(GpuProgramParameters::ACT_INVERSE_TRANSPOSE_WORLD_MATRIX, 0);
+    mWorldITMatrix = vsProgram->resolveParameter(GpuProgramParameters::ACT_INVERSE_TRANSPOSE_WORLD_MATRIX);
     if (mWorldITMatrix.get() == NULL)       
         return false;   
 
     // Get surface ambient colour if need to.
     if ((mTrackVertexColourType & TVC_AMBIENT) == 0)
     {       
-        mDerivedAmbientLightColour = psProgram->resolveAutoParameterInt(GpuProgramParameters::ACT_DERIVED_AMBIENT_LIGHT_COLOUR, 0);
+        mDerivedAmbientLightColour = psProgram->resolveParameter(GpuProgramParameters::ACT_DERIVED_AMBIENT_LIGHT_COLOUR);
         if (mDerivedAmbientLightColour.get() == NULL)       
             return false;
     }
     else
     {
-        mLightAmbientColour = psProgram->resolveAutoParameterInt(GpuProgramParameters::ACT_AMBIENT_LIGHT_COLOUR, 0);
+        mLightAmbientColour = psProgram->resolveParameter(GpuProgramParameters::ACT_AMBIENT_LIGHT_COLOUR);
         if (mLightAmbientColour.get() == NULL)      
             return false;   
 
-        mSurfaceAmbientColour = psProgram->resolveAutoParameterInt(GpuProgramParameters::ACT_SURFACE_AMBIENT_COLOUR, 0);
+        mSurfaceAmbientColour = psProgram->resolveParameter(GpuProgramParameters::ACT_SURFACE_AMBIENT_COLOUR);
         if (mSurfaceAmbientColour.get() == NULL)        
             return false;   
 
@@ -246,7 +243,7 @@ bool RTShaderSRSSegmentedLights::resolveGlobalParameters(ProgramSet* programSet)
     // Get surface diffuse colour if need to.
     if ((mTrackVertexColourType & TVC_DIFFUSE) == 0)
     {
-        mSurfaceDiffuseColour = psProgram->resolveAutoParameterInt(GpuProgramParameters::ACT_SURFACE_DIFFUSE_COLOUR, 0);
+        mSurfaceDiffuseColour = psProgram->resolveParameter(GpuProgramParameters::ACT_SURFACE_DIFFUSE_COLOUR);
         if (mSurfaceDiffuseColour.get() == NULL)        
             return false;    
     }
@@ -254,7 +251,7 @@ bool RTShaderSRSSegmentedLights::resolveGlobalParameters(ProgramSet* programSet)
     // Get surface specular colour if need to.
     if ((mTrackVertexColourType & TVC_SPECULAR) == 0)
     {
-        mSurfaceSpecularColour = psProgram->resolveAutoParameterInt(GpuProgramParameters::ACT_SURFACE_SPECULAR_COLOUR, 0);
+        mSurfaceSpecularColour = psProgram->resolveParameter(GpuProgramParameters::ACT_SURFACE_SPECULAR_COLOUR);
         if (mSurfaceSpecularColour.get() == NULL)       
             return false;    
     }
@@ -263,57 +260,51 @@ bool RTShaderSRSSegmentedLights::resolveGlobalParameters(ProgramSet* programSet)
     // Get surface emissive colour if need to.
     if ((mTrackVertexColourType & TVC_EMISSIVE) == 0)
     {
-        mSurfaceEmissiveColour = psProgram->resolveAutoParameterInt(GpuProgramParameters::ACT_SURFACE_EMISSIVE_COLOUR, 0);
+        mSurfaceEmissiveColour = psProgram->resolveParameter(GpuProgramParameters::ACT_SURFACE_EMISSIVE_COLOUR);
         if (mSurfaceEmissiveColour.get() == NULL)       
             return false;    
     }
 
     // Get derived scene colour.
-    mDerivedSceneColour = psProgram->resolveAutoParameterInt(GpuProgramParameters::ACT_DERIVED_SCENE_COLOUR, 0);
+    mDerivedSceneColour = psProgram->resolveParameter(GpuProgramParameters::ACT_DERIVED_SCENE_COLOUR);
     if (mDerivedSceneColour.get() == NULL)      
         return false;
 
     // Get surface shininess.
-    mSurfaceShininess = psProgram->resolveAutoParameterInt(GpuProgramParameters::ACT_SURFACE_SHININESS, 0);
+    mSurfaceShininess = psProgram->resolveParameter(GpuProgramParameters::ACT_SURFACE_SHININESS);
     if (mSurfaceShininess.get() == NULL)        
         return false;
 
     
     //Check if another SRS already defined a normal in world space to be used
-    mPSLocalNormal = psMain->getParameterByContent(psMain->getLocalParameters(), Parameter::SPC_NORMAL_WORLD_SPACE, GCT_FLOAT3);
+    mPSLocalNormal = psMain->getLocalParameter(Parameter::SPC_NORMAL_WORLD_SPACE);
     if (mPSLocalNormal.get() == NULL)
     {
         //create parameters to fetch the normal from the vertex shader
         
         // Resolve input vertex shader normal.
-        mVSInNormal = vsMain->resolveInputParameter(Parameter::SPS_NORMAL, 0, Parameter::SPC_NORMAL_OBJECT_SPACE, GCT_FLOAT3);
+        mVSInNormal = vsMain->resolveInputParameter(Parameter::SPC_NORMAL_OBJECT_SPACE);
         if (mVSInNormal.get() == NULL)
             return false;
 
         // Resolve output vertex shader normal.
-        mVSOutNormal = vsMain->resolveOutputParameter(Parameter::SPS_TEXTURE_COORDINATES, -1, Parameter::SPC_NORMAL_WORLD_SPACE, GCT_FLOAT3);
+        mVSOutNormal = vsMain->resolveOutputParameter(Parameter::SPC_NORMAL_WORLD_SPACE);
         if (mVSOutNormal.get() == NULL)
             return false;
 
         // Resolve input pixel shader normal.
-        mPSInNormal = psMain->resolveInputParameter(Parameter::SPS_TEXTURE_COORDINATES, 
-            mVSOutNormal->getIndex(), 
-            mVSOutNormal->getContent(),
-            GCT_FLOAT3);
+        mPSInNormal = psMain->resolveInputParameter(mVSOutNormal);
 
         if (mPSInNormal.get() == NULL)
             return false;
 
-        mPSLocalNormal = psMain->resolveLocalParameter(Parameter::SPS_TEXTURE_COORDINATES, -1, Parameter::SPC_NORMAL_WORLD_SPACE, GCT_FLOAT3);
+        mPSLocalNormal = psMain->resolveLocalParameter(Parameter::SPC_NORMAL_WORLD_SPACE);
     }
     
-    const ShaderParameterList& inputParams = psMain->getInputParameters();
-    const ShaderParameterList& localParams = psMain->getLocalParameters();
-
-    mPSDiffuse = psMain->getParameterByContent(inputParams, Parameter::SPC_COLOR_DIFFUSE, GCT_FLOAT4);
+    mPSDiffuse = psMain->getInputParameter(Parameter::SPC_COLOR_DIFFUSE);
     if (mPSDiffuse.get() == NULL)
     {
-        mPSDiffuse = psMain->getParameterByContent(localParams, Parameter::SPC_COLOR_DIFFUSE, GCT_FLOAT4);
+        mPSDiffuse = psMain->getLocalParameter(Parameter::SPC_COLOR_DIFFUSE);
         if (mPSDiffuse.get() == NULL)
             return false;
     }
@@ -322,49 +313,46 @@ bool RTShaderSRSSegmentedLights::resolveGlobalParameters(ProgramSet* programSet)
     if (mPSOutDiffuse.get() == NULL)
         return false;
 
-    mPSTempDiffuseColour = psMain->resolveLocalParameter(Parameter::SPS_UNKNOWN, 0, "lPerPixelDiffuse", GCT_FLOAT4);
+    mPSTempDiffuseColour = psMain->resolveLocalParameter("lPerPixelDiffuse", GCT_FLOAT4);
     if (mPSTempDiffuseColour.get() == NULL)
         return false;
 
-    mVSOutWorldPos = vsMain->resolveOutputParameter(Parameter::SPS_TEXTURE_COORDINATES, -1, Parameter::SPC_POSITION_WORLD_SPACE, GCT_FLOAT3);
+    mVSOutWorldPos = vsMain->resolveOutputParameter(Parameter::SPC_POSITION_WORLD_SPACE);
     if (mVSOutWorldPos.get() == NULL)
         return false;   
 
-    mPSInWorldPos = psMain->resolveInputParameter(Parameter::SPS_TEXTURE_COORDINATES, 
-        mVSOutWorldPos->getIndex(), 
-        mVSOutWorldPos->getContent(),
-        GCT_FLOAT3);
+    mPSInWorldPos = psMain->resolveInputParameter(mVSOutWorldPos);
     if (mPSInWorldPos.get() == NULL)
         return false;
 
-    mWorldMatrix = vsProgram->resolveAutoParameterInt(GpuProgramParameters::ACT_WORLD_MATRIX, 0);
+    mWorldMatrix = vsProgram->resolveParameter(GpuProgramParameters::ACT_WORLD_MATRIX);
     if (mWorldMatrix.get() == NULL)     
         return false;   
 
-    mVSInPosition = vsMain->resolveInputParameter(Parameter::SPS_POSITION, 0, Parameter::SPC_POSITION_OBJECT_SPACE, GCT_FLOAT4);
+    mVSInPosition = vsMain->resolveInputParameter(Parameter::SPC_POSITION_OBJECT_SPACE);
     if (mVSInPosition.get() == NULL)
         return false;
 
     if (mSpecularEnable)
     {
-        mPSSpecular = psMain->getParameterByContent(inputParams, Parameter::SPC_COLOR_SPECULAR, GCT_FLOAT4);
+        mPSSpecular = psMain->getInputParameter(Parameter::SPC_COLOR_SPECULAR);
         if (mPSSpecular.get() == NULL)
         {
-            mPSSpecular = psMain->getParameterByContent(localParams, Parameter::SPC_COLOR_SPECULAR, GCT_FLOAT4);
+            mPSSpecular = psMain->getLocalParameter(Parameter::SPC_COLOR_SPECULAR);
             if (mPSSpecular.get() == NULL)
                 return false;
         }
 
-        mPSTempSpecularColour = psMain->resolveLocalParameter(Parameter::SPS_UNKNOWN, 0, "lPerPixelSpecular", GCT_FLOAT4);
+        mPSTempSpecularColour = psMain->resolveLocalParameter("lPerPixelSpecular", GCT_FLOAT4);
         if (mPSTempSpecularColour.get() == NULL)
             return false;
 
 
-        mVSInPosition = vsMain->resolveInputParameter(Parameter::SPS_POSITION, 0, Parameter::SPC_POSITION_OBJECT_SPACE, GCT_FLOAT4);
+        mVSInPosition = vsMain->resolveInputParameter(Parameter::SPC_POSITION_OBJECT_SPACE);
         if (mVSInPosition.get() == NULL)
             return false;
 
-        mWorldMatrix = vsProgram->resolveAutoParameterInt(GpuProgramParameters::ACT_WORLD_MATRIX, 0);
+        mWorldMatrix = vsProgram->resolveParameter(GpuProgramParameters::ACT_WORLD_MATRIX);
         if (mWorldMatrix.get() == NULL)     
             return false;                                   
     }
@@ -383,7 +371,7 @@ bool RTShaderSRSSegmentedLights::resolveGlobalParameters(ProgramSet* programSet)
 //-----------------------------------------------------------------------
 bool RTShaderSRSSegmentedLights::resolvePerLightParameters(ProgramSet* programSet)
 {
-    Program* psProgram = programSet->getCpuFragmentProgram();
+    Program* psProgram = programSet->getCpuProgram(GPT_FRAGMENT_PROGRAM);
 
     // Resolve per light parameters.
     for (unsigned int i=0; i < mLightParamsList.size(); ++i)
@@ -452,8 +440,8 @@ bool RTShaderSRSSegmentedLights::resolvePerLightParameters(ProgramSet* programSe
 //-----------------------------------------------------------------------
 bool RTShaderSRSSegmentedLights::resolveDependencies(ProgramSet* programSet)
 {
-    Program* vsProgram = programSet->getCpuVertexProgram();
-    Program* psProgram = programSet->getCpuFragmentProgram();
+    Program* vsProgram = programSet->getCpuProgram(GPT_VERTEX_PROGRAM);
+    Program* psProgram = programSet->getCpuProgram(GPT_FRAGMENT_PROGRAM);
 
     vsProgram->addDependency(FFP_LIB_COMMON);
     vsProgram->addDependency(SL_LIB_PERPIXELLIGHTING);
@@ -467,9 +455,9 @@ bool RTShaderSRSSegmentedLights::resolveDependencies(ProgramSet* programSet)
 //-----------------------------------------------------------------------
 bool RTShaderSRSSegmentedLights::addFunctionInvocations(ProgramSet* programSet)
 {
-    Program* vsProgram = programSet->getCpuVertexProgram(); 
+    Program* vsProgram = programSet->getCpuProgram(GPT_VERTEX_PROGRAM); 
     Function* vsMain = vsProgram->getEntryPointFunction();  
-    Program* psProgram = programSet->getCpuFragmentProgram();
+    Program* psProgram = programSet->getCpuProgram(GPT_FRAGMENT_PROGRAM);
     Function* psMain = psProgram->getEntryPointFunction();  
 
     // Add the global illumination functions.

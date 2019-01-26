@@ -34,18 +34,16 @@ THE SOFTWARE.
 #include <AppKit/NSWindow.h>
 #include <QuartzCore/CVDisplayLink.h>
 #include "OgreOSXCocoaView.h"
-#include "OgreOSXCocoaWindowDelegate.h"
+#include "OgreGLRenderTarget.h"
 
 typedef NSUInteger NSWindowStyleMask; // NSWindowStyleMask was declared only since OSX 10.12 SDK
-
-@class CocoaWindowDelegate;
 
 @interface OgreGLWindow : NSWindow
 
 @end
 
 namespace Ogre {
-    class _OgreGLExport CocoaWindow : public RenderWindow
+    class _OgreGLExport CocoaWindow : public RenderWindow, public GLRenderTarget
     {
     private:
         NSWindow *mWindow;
@@ -54,7 +52,6 @@ namespace Ogre {
         NSOpenGLPixelFormat *mGLPixelFormat;
         CVDisplayLinkRef mDisplayLink;
         NSPoint mWindowOriginPt;
-        CocoaWindowDelegate *mWindowDelegate;
         CocoaContext* mContext;
 
         bool mActive;
@@ -75,9 +72,10 @@ namespace Ogre {
         CocoaWindow();
         ~CocoaWindow();
         
-        NSView* ogreView() const { return mView; };
-        NSWindow* ogreWindow() const { return mWindow; };
-        NSOpenGLContext* nsopenGLContext() const { return mGLContext; };
+        NSView* ogreView() const { return mView; }
+        NSWindow* ogreWindow() const { return mWindow; }
+        NSOpenGLContext* nsopenGLContext() const { return mGLContext; }
+        GLContext* getContext() const { return mContext; }
         void createWithView(OgreGLView *view);
 
         /** @copydoc see RenderWindow::getViewPointToPixelScale */

@@ -86,7 +86,7 @@ public:
 	{
 		StringVector names;
 		if(!GpuProgramManager::getSingleton().isSyntaxSupported("glsles")
-		&& !GpuProgramManager::getSingleton().isSyntaxSupported("glsl150")
+		&& !GpuProgramManager::getSingleton().isSyntaxSupported("glsl")
 		&& !GpuProgramManager::getSingleton().isSyntaxSupported("hlsl"))
             names.push_back("Cg Program Manager");
 		return names;
@@ -140,7 +140,7 @@ public:
 				Real x = (pt.x / 2) + 0.5f;
 				Real y = 1 - ((pt.y / 2) + 0.5f);
 
-				String lName = StringConverter::toString((unsigned long)(t))+"/"+"LodInfoLabel";
+				String lName = StringConverter::toString(size_t(t))+"/"+"LodInfoLabel";
 
 				OverlayElement *l = OverlayManager::getSingleton().createOverlayElement("TextArea", lName);
 				l->setCaption("Target="+StringConverter::toString(t->getTargetLodLevel())+"\nHighest="+

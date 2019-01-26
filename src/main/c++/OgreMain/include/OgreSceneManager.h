@@ -45,6 +45,7 @@ Torus Knot Software Ltd.
 #include "OgreResourceGroupManager.h"
 #include "OgreShadowTextureManager.h"
 #include "OgreInstanceManager.h"
+#include "OgreManualObject.h"
 #include "OgreRenderSystem.h"
 #include "OgreLodListener.h"
 #include "OgreHeaderPrefix.h"
@@ -357,8 +358,7 @@ namespace Ogre {
             SceneMgrQueuedRenderableVisitor() 
                 :transparentShadowCastersMode(false) {}
             ~SceneMgrQueuedRenderableVisitor() {}
-            void visit(Renderable* r);
-            bool visit(const Pass* p);
+            void visit(const Pass* p, RenderableList& rs);
             void visit(RenderablePass* rp);
 
             /// Target SM to send renderables to
@@ -376,8 +376,8 @@ namespace Ogre {
         /// Allow visitor helper to access protected methods
         friend class SceneMgrQueuedRenderableVisitor;
 
-        typedef map<String, Camera* >::type CameraList;
-        typedef map<String, Animation*>::type AnimationList;
+        typedef std::map<String, Camera* > CameraList;
+        typedef std::map<String, Animation*> AnimationList;
     protected:
 
         /// Subclasses can override this to ensure their specialised SceneNode is used.
@@ -389,11 +389,8 @@ namespace Ogre {
         String mName;
 
         /// Queue of objects for rendering
-        RenderQueue* mRenderQueue;
+        std::unique_ptr<RenderQueue> mRenderQueue;
         bool mLastRenderQueueInvocationCustom;
-
-        /// Current ambient light, cached for RenderSystem
-        ColourValue mAmbientLight;
 
         /// The rendering system to send the scene to
         RenderSystem *mDestRenderSystem;
@@ -402,19 +399,15 @@ namespace Ogre {
         */
         CameraList mCameras;
 
-        typedef map<String, StaticGeometry* >::type StaticGeometryList;
+        typedef std::map<String, StaticGeometry* > StaticGeometryList;
         StaticGeometryList mStaticGeometryList;
-        typedef map<String, InstancedGeometry* >::type InstancedGeometryList;
+        typedef std::map<String, InstancedGeometry* > InstancedGeometryList;
         InstancedGeometryList mInstancedGeometryList;
 
-        typedef map<String, InstanceManager*>::type InstanceManagerMap;
+        typedef std::map<String, InstanceManager*> InstanceManagerMap;
         InstanceManagerMap  mInstanceManagerMap;
 
-#if OGRE_NODE_STORAGE_LEGACY
-        typedef map<String, SceneNode*>::type SceneNodeList;
-#else
-        typedef vector<SceneNode*>::type SceneNodeList;
-#endif
+        typedef std::vector<SceneNode*> SceneNodeList;
 
         /** Central list of SceneNodes - for easy memory management.
             @note
@@ -430,37 +423,91 @@ namespace Ogre {
         Viewport* mCurrentViewport;
 
         /// Root scene node
-        SceneNode* mSceneRoot;
+        std::unique_ptr<SceneNode> mSceneRoot;
 
         /// Autotracking scene nodes
-        typedef set<SceneNode*>::type AutoTrackingSceneNodes;
+        typedef std::set<SceneNode*> AutoTrackingSceneNodes;
         AutoTrackingSceneNodes mAutoTrackingSceneNodes;
 
         // Sky params
-        // Sky plane
-        Entity* mSkyPlaneEntity;
-        Entity* mSkyDomeEntity[5];
-        ManualObject* mSkyBoxObj;
+        struct _OgreExport SkyRenderer
+        {
+            SkyRenderer(SceneManager* owner);
 
-        SceneNode* mSkyPlaneNode;
-        SceneNode* mSkyDomeNode;
-        SceneNode* mSkyBoxNode;
+            SceneManager* mSceneManager;
 
-        // Sky plane
-        bool mSkyPlaneEnabled;
-        uint8 mSkyPlaneRenderQueue;
-        Plane mSkyPlane;
-        SkyPlaneGenParameters mSkyPlaneGenParameters;
-        // Sky box
-        bool mSkyBoxEnabled;
-        uint8 mSkyBoxRenderQueue;
-        Quaternion mSkyBoxOrientation;
-        SkyBoxGenParameters mSkyBoxGenParameters;
-        // Sky dome
-        bool mSkyDomeEnabled;
-        uint8 mSkyDomeRenderQueue;
-        Quaternion mSkyDomeOrientation;
-        SkyDomeGenParameters mSkyDomeGenParameters;
+            // Sky plane
+            Entity* mSkyPlaneEntity;
+            Entity* mSkyDomeEntity[5];
+            std::unique_ptr<ManualObject> mSkyBoxObj;
+
+            SceneNode* mSkyPlaneNode;
+            SceneNode* mSkyDomeNode;
+            SceneNode* mSkyBoxNode;
+
+            // Sky plane
+            bool mSkyPlaneEnabled;
+            uint8 mSkyPlaneRenderQueue;
+            Plane mSkyPlane;
+            SkyPlaneGenParameters mSkyPlaneGenParameters;
+            // Sky box
+            bool mSkyBoxEnabled;
+            uint8 mSkyBoxRenderQueue;
+            Quaternion mSkyBoxOrientation;
+            SkyBoxGenParameters mSkyBoxGenParameters;
+            // Sky dome
+            bool mSkyDomeEnabled;
+            uint8 mSkyDomeRenderQueue;
+            Quaternion mSkyDomeOrientation;
+            SkyDomeGenParameters mSkyDomeGenParameters;
+
+            enum BoxPlane
+            {
+                BP_FRONT = 0,
+                BP_BACK = 1,
+                BP_LEFT = 2,
+                BP_RIGHT = 3,
+                BP_UP = 4,
+                BP_DOWN = 5
+            };
+
+            /* Internal utility method for creating the planes of a skybox.
+            */
+            MeshPtr createSkyboxPlane(
+                BoxPlane bp,
+                Real distance,
+                const Quaternion& orientation,
+                const String& groupName);
+
+            /* Internal utility method for creating the planes of a skydome.
+            */
+            MeshPtr createSkydomePlane(
+                BoxPlane bp,
+                Real curvature, Real tiling, Real distance,
+                const Quaternion& orientation,
+                int xsegments, int ysegments, int ySegmentsToKeep,
+                const String& groupName);
+
+            /** Internal method for queueing the sky objects with the params as
+                previously set through setSkyBox, setSkyPlane and setSkyDome.
+            */
+            void queueSkiesForRendering(RenderQueue* queue, Camera* cam);
+
+            void clear();
+
+            void setSkyBox(bool enable, const String& materialName, Real distance,
+                           uint8 renderQueue, const Quaternion& orientation,
+                           const String& groupName);
+
+            void setSkyPlane(bool enable, const Plane& plane, const String& materialName,
+                             Real scale, Real tiling, uint8 renderQueue, Real bow, int xsegments,
+                             int ysegments, const String& groupName);
+
+            void setSkyDome(bool enable, const String& materialName, Real curvature, Real tiling,
+                            Real distance, uint8 renderQueue, const Quaternion& orientation,
+                            int xsegments, int ysegments, int ysegments_keep,
+                            const String& groupName);
+        } mSkyRenderer;
 
         // Fog
         FogMode mFogMode;
@@ -469,13 +516,12 @@ namespace Ogre {
         Real mFogEnd;
         Real mFogDensity;
 
-        typedef set<uint8>::type SpecialCaseRenderQueueList;
+        typedef std::set<uint8> SpecialCaseRenderQueueList;
         SpecialCaseRenderQueueList mSpecialCaseQueueList;
         SpecialCaseRenderQueueMode mSpecialCaseQueueMode;
         uint8 mWorldGeometryRenderQueue;
         
         unsigned long mLastFrameNumber;
-        Matrix4 mTempXform[256];
         bool mResetIdentityView;
         bool mResetIdentityProj;
 
@@ -492,18 +538,8 @@ namespace Ogre {
                 have a focus step to limit the shadow sample distribution to only valid visible
                 scene elements.
         */
-        typedef map< const Camera*, VisibleObjectsBoundsInfo>::type CamVisibleObjectsMap;
+        typedef std::map< const Camera*, VisibleObjectsBoundsInfo> CamVisibleObjectsMap;
         CamVisibleObjectsMap mCamVisibleObjectsMap; 
-
-        /** ShadowCamera to light mapping */
-        typedef map< const Camera*, const Light* >::type ShadowCamLightMapping;
-        ShadowCamLightMapping mShadowCamLightMapping;
-
-        /// Array defining shadow count per light type.
-        size_t mShadowTextureCountPerType[3];
-
-        /// Array defining shadow texture index in light list.
-        vector<size_t>::type mShadowTextureIndexLightList;
 
         /// Cached light information, used to tracking light's changes
         struct _OgreExport LightInfo
@@ -526,22 +562,21 @@ namespace Ogre {
             }
         };
 
-        typedef vector<LightInfo>::type LightInfoList;
+        typedef std::vector<LightInfo> LightInfoList;
 
         LightList mLightsAffectingFrustum;
         LightInfoList mCachedLightInfos;
         LightInfoList mTestLightInfos; // potentially new list
         ulong mLightsDirtyCounter;
-        LightList mShadowTextureCurrentCasterLightList;
 
-        typedef map<String, MovableObject*>::type MovableObjectMap;
+        typedef std::map<String, MovableObject*> MovableObjectMap;
         /// Simple structure to hold MovableObject map and a mutex to go with it.
         struct MovableObjectCollection
         {
                     MovableObjectMap map;
                     OGRE_MUTEX(mutex);
         };
-        typedef map<String, MovableObjectCollection*>::type MovableObjectCollectionMap;
+        typedef std::map<String, MovableObjectCollection*> MovableObjectCollectionMap;
         MovableObjectCollectionMap mMovableObjectCollectionMap;
         NameGenerator mMovableNameGenerator;
         /** Gets the movable object collection for the given type name.
@@ -562,30 +597,161 @@ namespace Ogre {
             Subclasses can use this to install their own RenderQueue implementation.
         */
         virtual void initRenderQueue(void);
-        /// A pass designed to let us render shadow colour on white for texture shadows
-        Pass* mShadowCasterPlainBlackPass;
-        /// A pass designed to let us render shadow receivers for texture shadows
-        Pass* mShadowReceiverPass;
-        /** Internal method for turning a regular pass into a shadow caster pass.
-        @remarks
+
+        struct _OgreExport ShadowRenderer
+        {
+            typedef std::vector<Camera*> CameraList;
+            typedef std::map< const Camera*, const Light* > ShadowCamLightMapping;
+
+            ShadowRenderer(SceneManager* owner);
+            ~ShadowRenderer();
+
+            SceneManager* mSceneManager;
+            RenderSystem* mDestRenderSystem;
+
+            ShadowTechnique mShadowTechnique;
+            ColourValue mShadowColour;
+
+            /// A pass designed to let us render shadow colour on white for texture shadows
+            Pass* mShadowCasterPlainBlackPass;
+            /// A pass designed to let us render shadow receivers for texture shadows
+            Pass* mShadowReceiverPass;
+
+            Pass* mShadowModulativePass;
+
+            Pass* mShadowDebugPass;
+            Pass* mShadowStencilPass;
+            HardwareIndexBufferSharedPtr mShadowIndexBuffer;
+            size_t mShadowIndexBufferSize;
+            size_t mShadowIndexBufferUsedSize;
+            GpuProgramParametersSharedPtr mInfiniteExtrusionParams;
+            GpuProgramParametersSharedPtr mFiniteExtrusionParams;
+
+            Pass* mShadowTextureCustomCasterPass;
+            Pass* mShadowTextureCustomReceiverPass;
+            String mShadowTextureCustomCasterVertexProgram;
+            String mShadowTextureCustomCasterFragmentProgram;
+            String mShadowTextureCustomReceiverVertexProgram;
+            String mShadowTextureCustomReceiverFragmentProgram;
+            GpuProgramParametersSharedPtr mShadowTextureCustomCasterVPParams;
+            GpuProgramParametersSharedPtr mShadowTextureCustomCasterFPParams;
+            GpuProgramParametersSharedPtr mShadowTextureCustomReceiverVPParams;
+            GpuProgramParametersSharedPtr mShadowTextureCustomReceiverFPParams;
+
+            TexturePtr mNullShadowTexture;
+            CameraList mShadowTextureCameras;
+            LightList mShadowTextureCurrentCasterLightList;
+            // ShadowCamera to light mapping
+            ShadowCamLightMapping mShadowCamLightMapping;
+            // Array defining shadow texture index in light list.
+            std::vector<size_t> mShadowTextureIndexLightList;
+
+            std::unique_ptr<Rectangle2D> mFullScreenQuad;
+
+            ShadowTextureList mShadowTextures;
+            Texture* mCurrentShadowTexture;
+
+            bool mShadowAdditiveLightClip;
+            bool mDebugShadows;
+            bool mShadowMaterialInitDone;
+            bool mShadowUseInfiniteFarPlane;
+            Real mShadowDirLightExtrudeDist;
+
+            Real mDefaultShadowFarDist;
+            Real mDefaultShadowFarDistSquared;
+            Real mShadowTextureOffset; /// Proportion of texture offset in view direction e.g. 0.4
+            Real mShadowTextureFadeStart; /// As a proportion e.g. 0.6
+            Real mShadowTextureFadeEnd; /// As a proportion e.g. 0.9
+
+            /// Array defining shadow count per light type.
+            size_t mShadowTextureCountPerType[3];
+
+            /// default shadow camera setup
+            ShadowCameraSetupPtr mDefaultShadowCameraSetup;
+
+            void setShadowTechnique(ShadowTechnique technique);
+
+            /// Internal method for creating shadow textures (texture-based shadows)
+            void ensureShadowTexturesCreated();
+            void prepareShadowTextures(Camera* cam, Viewport* vp, const LightList* lightList);
+            /// Internal method for destroying shadow textures (texture-based shadows)
+            void destroyShadowTextures(void);
+
+            /** Internal method for turning a regular pass into a shadow caster pass.
+            @remarks
+                This is only used for texture shadows, basically we're trying to
+                ensure that objects are rendered solid black.
+                This method will usually return the standard solid black pass for
+                all fixed function passes, but will merge in a vertex program
+                and fudge the AutoParamDataSource to set black lighting for
+                passes with vertex programs.
+            */
+            const Pass* deriveShadowCasterPass(const Pass* pass);
+            /** Internal method for turning a regular pass into a shadow receiver pass.
+            @remarks
             This is only used for texture shadows, basically we're trying to
-            ensure that objects are rendered solid black.
-            This method will usually return the standard solid black pass for
+            ensure that objects are rendered with a projective texture.
+            This method will usually return a standard single-texture pass for
             all fixed function passes, but will merge in a vertex program
-            and fudge the AutoParamDataSource to set black lighting for
-            passes with vertex programs. 
-        */
-        const Pass* deriveShadowCasterPass(const Pass* pass);
-        /** Internal method for turning a regular pass into a shadow receiver pass.
-        @remarks
-        This is only used for texture shadows, basically we're trying to
-        ensure that objects are rendered with a projective texture.
-        This method will usually return a standard single-texture pass for
-        all fixed function passes, but will merge in a vertex program
-        for passes with vertex programs. 
-        */
-        const Pass* deriveShadowReceiverPass(const Pass* pass);
-    
+            for passes with vertex programs.
+            */
+            const Pass* deriveShadowReceiverPass(const Pass* pass);
+
+            void initShadowVolumeMaterials();
+            void setShadowTextureCasterMaterial(const MaterialPtr& mat);
+            void setShadowTextureReceiverMaterial(const MaterialPtr& mat);
+            void setShadowColour(const ColourValue& colour);
+            void render(RenderQueueGroup* group, QueuedRenderableCollection::OrganisationMode om);
+
+            /** Render a group with the added complexity of additive stencil shadows. */
+            void renderAdditiveStencilShadowedQueueGroupObjects(RenderQueueGroup* group,
+                QueuedRenderableCollection::OrganisationMode om);
+            /** Render a group with the added complexity of modulative stencil shadows. */
+            void renderModulativeStencilShadowedQueueGroupObjects(RenderQueueGroup* group,
+                QueuedRenderableCollection::OrganisationMode om);
+            /** Render a group rendering only shadow casters. */
+            void renderTextureShadowCasterQueueGroupObjects(RenderQueueGroup* group,
+                QueuedRenderableCollection::OrganisationMode om);
+            /** Render a group rendering only shadow receivers. */
+            void renderTextureShadowReceiverQueueGroupObjects(RenderQueueGroup* group,
+                QueuedRenderableCollection::OrganisationMode om);
+            /** Render a group with the added complexity of modulative texture shadows. */
+            void renderModulativeTextureShadowedQueueGroupObjects(RenderQueueGroup* group,
+                QueuedRenderableCollection::OrganisationMode om);
+
+            /** Render a group with additive texture shadows. */
+            void renderAdditiveTextureShadowedQueueGroupObjects(RenderQueueGroup* group,
+                QueuedRenderableCollection::OrganisationMode om);
+
+            /**  Returns the shadow caster AAB for a specific light-camera combination */
+            const VisibleObjectsBoundsInfo& getShadowCasterBoundsInfo(const Light* light, size_t iteration) const;
+
+            /** Internal method for rendering all the objects for a given light into the
+                stencil buffer.
+            @param light The light source
+            @param cam The camera being viewed from
+            @param calcScissor Whether the method should set up any scissor state, or
+                false if that's already been done
+            */
+            void renderShadowVolumesToStencil(const Light* light, const Camera* cam,
+                bool calcScissor);
+
+            /** Internal utility method for setting stencil state for rendering shadow volumes.
+            @param secondpass Is this the second pass?
+            @param zfail Should we be using the zfail method?
+            @param twosided Should we use a 2-sided stencil?
+            */
+            void setShadowVolumeStencilState(bool secondpass, bool zfail, bool twosided);
+            /** Render a set of shadow renderables. */
+            void renderShadowVolumeObjects(ShadowCaster::ShadowRenderableListIterator iShadowRenderables,
+                Pass* pass, const LightList *manualLightList, unsigned long flags,
+                bool secondpass, bool zfail, bool twosided);
+
+            size_t getShadowTexIndex(size_t lightIndex);
+
+            void setShadowIndexBufferSize(size_t size);
+        } mShadowRenderer;
+
         /** Internal method to validate whether a Pass should be allowed to render.
         @remarks
             Called just before a pass is about to be used for rendering a group to
@@ -602,33 +768,6 @@ namespace Ogre {
         */
         bool validateRenderableForRendering(const Pass* pass, const Renderable* rend);
 
-        enum BoxPlane
-        {
-            BP_FRONT = 0,
-            BP_BACK = 1,
-            BP_LEFT = 2,
-            BP_RIGHT = 3,
-            BP_UP = 4,
-            BP_DOWN = 5
-        };
-
-        /* Internal utility method for creating the planes of a skybox.
-        */
-        MeshPtr createSkyboxPlane(
-            BoxPlane bp,
-            Real distance,
-            const Quaternion& orientation,
-            const String& groupName);
-
-        /* Internal utility method for creating the planes of a skydome.
-        */
-        MeshPtr createSkydomePlane(
-            BoxPlane bp,
-            Real curvature, Real tiling, Real distance,
-            const Quaternion& orientation,
-            int xsegments, int ysegments, int ySegmentsToKeep, 
-            const String& groupName);
-
         /// Flag indicating whether SceneNodes will be rendered as a set of 3 axes
         bool mDisplayNodes;
 
@@ -642,16 +781,24 @@ namespace Ogre {
             which override the camera's own view / projection materices. */
         void useRenderableViewProjMode(const Renderable* pRend, bool fixedFunction);
         
+        /** Internal method used by _renderSingleObject to set the world transform */
+        void setWorldTransform(Renderable* rend, bool fixedFunction);
+
+        /** Internal method used by _renderSingleObject to render a single light pass */
+        void issueRenderWithLights(Renderable* rend, const Pass* pass,
+                                   const LightList* pLightListToUse, bool fixedFunction,
+                                   bool lightScissoringClipping);
+
         /** Internal method used by _renderSingleObject to deal with renderables
             which override the camera's own view / projection matrices. */
         void resetViewProjMode(bool fixedFunction);
 
-        typedef vector<RenderQueueListener*>::type RenderQueueListenerList;
+        typedef std::vector<RenderQueueListener*> RenderQueueListenerList;
         RenderQueueListenerList mRenderQueueListeners;
 
-        typedef vector<RenderObjectListener*>::type RenderObjectListenerList;
+        typedef std::vector<RenderObjectListener*> RenderObjectListenerList;
         RenderObjectListenerList mRenderObjectListeners;
-        typedef vector<Listener*>::type ListenerList;
+        typedef std::vector<Listener*> ListenerList;
         ListenerList mListeners;
         /// Internal method for firing the queue start event
         void firePreRenderQueues();
@@ -720,34 +867,16 @@ namespace Ogre {
         }
 
         /// Utility class for calculating automatic parameters for gpu programs
-        AutoParamDataSource* mAutoParamDataSource;
+        std::unique_ptr<AutoParamDataSource> mAutoParamDataSource;
 
         CompositorChain* mActiveCompositorChain;
         bool mLateMaterialResolving;
 
-        ShadowTechnique mShadowTechnique;
-        bool mDebugShadows;
-        ColourValue mShadowColour;
-        Pass* mShadowDebugPass;
-        Pass* mShadowStencilPass;
-        Pass* mShadowModulativePass;
-        bool mShadowMaterialInitDone;
-        HardwareIndexBufferSharedPtr mShadowIndexBuffer;
-        size_t mShadowIndexBufferSize;
-        size_t mShadowIndexBufferUsedSize;
-        Rectangle2D* mFullScreenQuad;
-        Real mShadowDirLightExtrudeDist;
         IlluminationRenderStage mIlluminationStage;
         ShadowTextureConfigList mShadowTextureConfigList;
         bool mShadowTextureConfigDirty;
-        ShadowTextureList mShadowTextures;
-        TexturePtr mNullShadowTexture;
-        typedef vector<Camera*>::type ShadowTextureCameraList;
-        ShadowTextureCameraList mShadowTextureCameras;
-        Texture* mCurrentShadowTexture;
-        bool mShadowUseInfiniteFarPlane;
         bool mShadowCasterRenderBackFaces;
-        bool mShadowAdditiveLightClip;
+
         /// Struct for caching light clipping information for re-use in a frame
         struct LightClippingInfo
         {
@@ -758,12 +887,9 @@ namespace Ogre {
             LightClippingInfo() : scissorValid(false), clipPlanesValid(false) {}
 
         };
-        typedef map<Light*, LightClippingInfo>::type LightClippingInfoMap;
+        typedef std::map<Light*, LightClippingInfo> LightClippingInfoMap;
         LightClippingInfoMap mLightClippingInfoMap;
         unsigned long mLightClippingInfoMapFrameNumber;
-
-        /// default shadow camera setup
-        ShadowCameraSetupPtr mDefaultShadowCameraSetup;
 
         /** Default sorting routine which sorts lights which cast shadows
             to the front of a list, sub-sorting by distance.
@@ -793,7 +919,7 @@ namespace Ogre {
         /// Internal method for destroying shadow textures (texture-based shadows)
         virtual void destroyShadowTextures(void);
 
-        typedef vector<InstanceManager*>::type      InstanceManagerVec;
+        typedef std::vector<InstanceManager*>      InstanceManagerVec;
         InstanceManagerVec mDirtyInstanceManagers;
         InstanceManagerVec mDirtyInstanceMgrsTmp;
 
@@ -827,63 +953,19 @@ namespace Ogre {
         void _resumeRendering(RenderContext* context);
 
     protected:
-        /** Internal method for rendering all the objects for a given light into the 
-            stencil buffer.
-        @param light The light source
-        @param cam The camera being viewed from
-        @param calcScissor Whether the method should set up any scissor state, or
-            false if that's already been done
-        */
-        void renderShadowVolumesToStencil(const Light* light, const Camera* cam,
-            bool calcScissor);
-        /** Internal utility method for setting stencil state for rendering shadow volumes. 
-        @param secondpass Is this the second pass?
-        @param zfail Should we be using the zfail method?
-        @param twosided Should we use a 2-sided stencil?
-        */
-        void setShadowVolumeStencilState(bool secondpass, bool zfail, bool twosided);
-        /** Render a set of shadow renderables. */
-        void renderShadowVolumeObjects(ShadowCaster::ShadowRenderableListIterator iShadowRenderables,
-            Pass* pass, const LightList *manualLightList, unsigned long flags,
-            bool secondpass, bool zfail, bool twosided);
-
-        /** render using the feature of reading back the inactive depth-stencil buffers as texture
-            only on DirectX 11 Render System*/
-        void renderUsingReadBackAsTexture(unsigned int secondpass, Ogre::String variableName,unsigned int StartSlot);
-
-        typedef vector<ShadowCaster*>::type ShadowCasterList;
+        typedef std::vector<ShadowCaster*> ShadowCasterList;
         ShadowCasterList mShadowCasterList;
-        SphereSceneQuery* mShadowCasterSphereQuery;
-        AxisAlignedBoxSceneQuery* mShadowCasterAABBQuery;
-        Real mDefaultShadowFarDist;
-        Real mDefaultShadowFarDistSquared;
-        Real mShadowTextureOffset; /// Proportion of texture offset in view direction e.g. 0.4
-        Real mShadowTextureFadeStart; /// As a proportion e.g. 0.6
-        Real mShadowTextureFadeEnd; /// As a proportion e.g. 0.9
+        std::unique_ptr<SphereSceneQuery> mShadowCasterSphereQuery;
+        std::unique_ptr<AxisAlignedBoxSceneQuery> mShadowCasterAABBQuery;
         bool mShadowTextureSelfShadow;
-        Pass* mShadowTextureCustomCasterPass;
-        Pass* mShadowTextureCustomReceiverPass;
-        String mShadowTextureCustomCasterVertexProgram;
-        String mShadowTextureCustomCasterFragmentProgram;
-        String mShadowTextureCustomReceiverVertexProgram;
-        String mShadowTextureCustomReceiverFragmentProgram;
-        GpuProgramParametersSharedPtr mShadowTextureCustomCasterVPParams;
-        GpuProgramParametersSharedPtr mShadowTextureCustomCasterFPParams;
-        GpuProgramParametersSharedPtr mShadowTextureCustomReceiverVPParams;
-        GpuProgramParametersSharedPtr mShadowTextureCustomReceiverFPParams;
 
         /// Visibility mask used to show / hide objects
         uint32 mVisibilityMask;
         bool mFindVisibleObjects;
-
         /// Suppress render state changes?
         bool mSuppressRenderStateChanges;
         /// Suppress shadows?
         bool mSuppressShadows;
-
-
-        GpuProgramParametersSharedPtr mInfiniteExtrusionParams;
-        GpuProgramParametersSharedPtr mFiniteExtrusionParams;
 
         /// Inner class to use as callback for shadow caster scene query
         class _OgreExport ShadowCasterSceneQueryListener : public SceneQueryListener, public SceneMgtAlloc
@@ -917,7 +999,7 @@ namespace Ogre {
             bool queryResult(SceneQuery::WorldFragment* fragment);
         };
 
-        ShadowCasterSceneQueryListener* mShadowCasterQueryListener;
+        std::unique_ptr<ShadowCasterSceneQueryListener> mShadowCasterQueryListener;
 
         /** Internal method for locating a list of shadow casters which 
             could be affecting the frustum for a given light. 
@@ -930,37 +1012,14 @@ namespace Ogre {
         /** Render a group in the ordinary way */
         void renderBasicQueueGroupObjects(RenderQueueGroup* pGroup,
             QueuedRenderableCollection::OrganisationMode om);
-        /** Render a group with the added complexity of additive stencil shadows. */
-        void renderAdditiveStencilShadowedQueueGroupObjects(RenderQueueGroup* group,
-            QueuedRenderableCollection::OrganisationMode om);
-        /** Render a group with the added complexity of modulative stencil shadows. */
-        void renderModulativeStencilShadowedQueueGroupObjects(RenderQueueGroup* group,
-            QueuedRenderableCollection::OrganisationMode om);
-        /** Render a group rendering only shadow casters. */
-        void renderTextureShadowCasterQueueGroupObjects(RenderQueueGroup* group,
-            QueuedRenderableCollection::OrganisationMode om);
-        /** Render a group rendering only shadow receivers. */
-        void renderTextureShadowReceiverQueueGroupObjects(RenderQueueGroup* group,
-            QueuedRenderableCollection::OrganisationMode om);
-        /** Render a group with the added complexity of modulative texture shadows. */
-        void renderModulativeTextureShadowedQueueGroupObjects(RenderQueueGroup* group,
-            QueuedRenderableCollection::OrganisationMode om);
-
-        /** Render a group with additive texture shadows. */
-        void renderAdditiveTextureShadowedQueueGroupObjects(RenderQueueGroup* group,
-            QueuedRenderableCollection::OrganisationMode om);
-        /** Render a set of objects, see renderSingleObject for param definitions */
-        void renderObjects(const QueuedRenderableCollection& objs,
-            QueuedRenderableCollection::OrganisationMode om, bool lightScissoringClipping,
-            bool doLightIteration, const LightList* manualLightList = 0);
-        /** Render those objects in the transparent pass list which have shadow casting forced on
-        @remarks
-            This function is intended to be used to render the shadows of transparent objects which have
+        /** Render a set of objects, see renderSingleObject for param definitions
+            @remarks
+            transparentShadowCastersMode is intended to be used to render the shadows of transparent objects which have
             transparency_casts_shadows set to 'on' in their material
         */
-        void renderTransparentShadowCasterObjects(const QueuedRenderableCollection& objs,
+        void renderObjects(const QueuedRenderableCollection& objs,
             QueuedRenderableCollection::OrganisationMode om, bool lightScissoringClipping,
-            bool doLightIteration, const LightList* manualLightList = 0);
+            bool doLightIteration, const LightList* manualLightList = 0, bool transparentShadowCastersMode = false);
 
         /** Update the state of the global render queue splitting based on a shadow
         option change. */
@@ -988,19 +1047,16 @@ namespace Ogre {
 
         /// Whether to use camera-relative rendering
         bool mCameraRelativeRendering;
-        Matrix4 mCachedViewMatrix;
-        Vector3 mCameraRelativePosition;
+        Affine3 mCachedViewMatrix;
 
         /// Last light sets
         uint32 mLastLightHash;
         unsigned short mLastLightLimit;
-        uint32 mLastLightHashGpuProgram;
         /// Gpu params that need rebinding (mask of GpuParamVariability)
         uint16 mGpuParamsDirty;
 
-        void useLights(const LightList& lights, unsigned short limit);
-        void setViewMatrix(const Matrix4& m);
-        void useLightsGpuProgram(const Pass* pass, const LightList* lights);
+        void useLights(const LightList& lights, ushort limit, bool fixedFunction);
+        void setViewMatrix(const Affine3& m);
         void bindGpuProgram(GpuProgram* prog);
         void updateGpuProgramParameters(const Pass* p);
 
@@ -1012,19 +1068,19 @@ namespace Ogre {
 
 
         /// Set of registered LOD listeners
-        typedef set<LodListener*>::type LodListenerSet;
+        typedef std::set<LodListener*> LodListenerSet;
         LodListenerSet mLodListeners;
 
         /// List of movable object LOD changed events
-        typedef vector<MovableObjectLodChangedEvent>::type MovableObjectLodChangedEventList;
+        typedef std::vector<MovableObjectLodChangedEvent> MovableObjectLodChangedEventList;
         MovableObjectLodChangedEventList mMovableObjectLodChangedEvents;
 
         /// List of entity mesh LOD changed events
-        typedef vector<EntityMeshLodChangedEvent>::type EntityMeshLodChangedEventList;
+        typedef std::vector<EntityMeshLodChangedEvent> EntityMeshLodChangedEventList;
         EntityMeshLodChangedEventList mEntityMeshLodChangedEvents;
 
         /// List of entity material LOD changed events
-        typedef vector<EntityMaterialLodChangedEvent>::type EntityMaterialLodChangedEventList;
+        typedef std::vector<EntityMaterialLodChangedEvent> EntityMaterialLodChangedEventList;
         EntityMaterialLodChangedEventList mEntityMaterialLodChangedEvents;
 
     public:
@@ -1811,9 +1867,10 @@ namespace Ogre {
         /** Internal method for queueing the sky objects with the params as 
             previously set through setSkyBox, setSkyPlane and setSkyDome.
         */
-        void _queueSkiesForRendering(Camera* cam);
-
-
+        void _queueSkiesForRendering(Camera* cam)
+        {
+            mSkyRenderer.queueSkiesForRendering(getRenderQueue(), cam);
+        }
 
         /** Notifies the scene manager of its destination render system
             @remarks
@@ -1902,7 +1959,7 @@ namespace Ogre {
             Real tiling = 10, bool drawFirst = true, Real bow = 0, 
             int xsegments = 1, int ysegments = 1, 
             const String& groupName = ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME);
-        /** @overload setSkyPlane
+        /** @copydoc setSkyPlane
             @param
                 renderQueue The render queue to use when rendering this object
         */        
@@ -1914,16 +1971,16 @@ namespace Ogre {
             const String& groupName = ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME);
 
         /** Enables / disables a 'sky plane' */
-        void setSkyPlaneEnabled(bool enable) { mSkyPlaneEnabled = enable; }
+        void setSkyPlaneEnabled(bool enable) { mSkyRenderer.mSkyPlaneEnabled = enable; }
 
         /** Return whether a key plane is enabled */
-        bool isSkyPlaneEnabled(void) const { return mSkyPlaneEnabled; }
+        bool isSkyPlaneEnabled(void) const { return mSkyRenderer.mSkyPlaneEnabled; }
 
         /** Get the sky plane node, if enabled. */
-        SceneNode* getSkyPlaneNode(void) const { return mSkyPlaneNode; }
+        SceneNode* getSkyPlaneNode(void) const { return mSkyRenderer.mSkyPlaneNode; }
 
         /** Get the parameters used to construct the SkyPlane, if any **/
-        const SkyPlaneGenParameters& getSkyPlaneGenParameters(void) const { return mSkyPlaneGenParameters; }
+        const SkyPlaneGenParameters& getSkyPlaneGenParameters(void) const { return mSkyRenderer.mSkyPlaneGenParameters; }
 
         /** Enables / disables a 'sky box' i.e. a 6-sided box at constant
             distance from the camera representing the sky.
@@ -1959,8 +2016,6 @@ namespace Ogre {
                 ensure that the distance value is large enough that no
                 objects will 'poke through' the sky box when it is rendered.
             @param
-                renderQueue The render queue to use when rendering this object
-            @param
                 orientation Optional parameter to specify the orientation
                 of the box. By default the 'top' of the box is deemed to be
                 in the +y direction, and the 'front' at the -z direction.
@@ -1973,7 +2028,7 @@ namespace Ogre {
             bool drawFirst = true, const Quaternion& orientation = Quaternion::IDENTITY,
             const String& groupName = ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME);
 
-        /** @overload setSkyBox
+        /** @copydoc setSkyBox
             @param
                 renderQueue The render queue to use when rendering this object
         */
@@ -1983,16 +2038,16 @@ namespace Ogre {
             const String& groupName = ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME);
 
         /** Enables / disables a 'sky box' */
-        void setSkyBoxEnabled(bool enable) { mSkyBoxEnabled = enable; }
+        void setSkyBoxEnabled(bool enable) { mSkyRenderer.mSkyBoxEnabled = enable; }
 
         /** Return whether a skybox is enabled */
-        bool isSkyBoxEnabled(void) const { return mSkyBoxEnabled; }
+        bool isSkyBoxEnabled(void) const { return mSkyRenderer.mSkyBoxEnabled; }
 
         /** Get the skybox node, if enabled. */
-        SceneNode* getSkyBoxNode(void) const { return mSkyBoxNode; }
+        SceneNode* getSkyBoxNode(void) const { return mSkyRenderer.mSkyBoxNode; }
 
         /** Get the parameters used to generate the current SkyBox, if any */
-        const SkyBoxGenParameters& getSkyBoxGenParameters(void) const { return mSkyBoxGenParameters; }
+        const SkyBoxGenParameters& getSkyBoxGenParameters(void) const { return mSkyRenderer.mSkyBoxGenParameters; }
 
         /** Enables / disables a 'sky dome' i.e. an illusion of a curved sky.
             @remarks
@@ -2056,7 +2111,7 @@ namespace Ogre {
             int xsegments = 16, int ysegments = 16, int ysegments_keep = -1,
             const String& groupName = ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME);
 
-        /** @overload setSkyDome
+        /** @copydoc setSkyDome
             @param
                 renderQueue The render queue to use when rendering this object
                 */        
@@ -2068,16 +2123,16 @@ namespace Ogre {
             const String& groupName = ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME);
 
         /** Enables / disables a 'sky dome' */
-        void setSkyDomeEnabled(bool enable) { mSkyDomeEnabled = enable; }
+        void setSkyDomeEnabled(bool enable) { mSkyRenderer.mSkyDomeEnabled = enable; }
 
         /** Return whether a skydome is enabled */
-        bool isSkyDomeEnabled(void) const { return mSkyDomeEnabled; }
+        bool isSkyDomeEnabled(void) const { return mSkyRenderer.mSkyDomeEnabled; }
 
         /** Get the sky dome node, if enabled. */
-        SceneNode* getSkyDomeNode(void) const { return mSkyDomeNode; }
+        SceneNode* getSkyDomeNode(void) const { return mSkyRenderer.mSkyDomeNode; }
 
         /** Get the parameters used to generate the current SkyDome, if any */
-        const SkyDomeGenParameters& getSkyDomeGenParameters(void) const { return mSkyDomeGenParameters; }
+        const SkyDomeGenParameters& getSkyDomeGenParameters(void) const { return mSkyRenderer.mSkyDomeGenParameters; }
 
         /** Sets the fogging mode applied to the scene.
             @remarks
@@ -2105,7 +2160,7 @@ namespace Ogre {
         */
         void setFog(
             FogMode mode = FOG_NONE, const ColourValue& colour = ColourValue::White,
-            Real expDensity = 0.001, Real linearStart = 0.0, Real linearEnd = 1.0);
+            Real expDensity = 0.001f, Real linearStart = 0.0f, Real linearEnd = 1.0f);
 
         /** Returns the fog mode for the scene.
         */
@@ -2303,7 +2358,7 @@ namespace Ogre {
             this within the main render loop.
         */
         void manualRender(RenderOperation* rend, Pass* pass, Viewport* vp,
-            const Matrix4& worldMatrix, const Matrix4& viewMatrix, const Matrix4& projMatrix, 
+            const Affine3& worldMatrix, const Affine3& viewMatrix, const Matrix4& projMatrix,
             bool doBeginEndFrame = false) ;
 
         /** Manual rendering method for rendering a single object. 
@@ -2326,7 +2381,7 @@ namespace Ogre {
         which will be used for a single render of this object.
         */
         void manualRender(Renderable* rend, const Pass* pass, Viewport* vp,
-            const Matrix4& viewMatrix, const Matrix4& projMatrix, bool doBeginEndFrame = false, bool lightScissoringClipping = true, 
+            const Affine3& viewMatrix, const Matrix4& projMatrix, bool doBeginEndFrame = false, bool lightScissoringClipping = true,
             bool doLightIteration = true, const LightList* manualLightList = 0);
 
         /** Retrieves the internal render queue, for advanced users only.
@@ -2575,12 +2630,12 @@ namespace Ogre {
         void setShadowTechnique(ShadowTechnique technique);
         
         /** Gets the current shadow technique. */
-        ShadowTechnique getShadowTechnique(void) const { return mShadowTechnique; }
+        ShadowTechnique getShadowTechnique(void) const { return mShadowRenderer.mShadowTechnique; }
 
         /** Enables / disables the rendering of debug information for shadows. */
-        void setShowDebugShadows(bool debug) { mDebugShadows = debug; }
+        void setShowDebugShadows(bool debug) { mShadowRenderer.mDebugShadows = debug; }
         /** Are debug shadows shown? */
-        bool getShowDebugShadows(void ) const { return mDebugShadows; }
+        bool getShowDebugShadows(void ) const { return mShadowRenderer.mDebugShadows; }
 
         /** Set the colour used to modulate areas in shadow. 
         @remarks This is only applicable for shadow techniques which involve 
@@ -2588,7 +2643,7 @@ namespace Ogre {
             This colour provided is used as a modulative value to darken the
             areas.
         */
-        void setShadowColour(const ColourValue& colour);
+        void setShadowColour(const ColourValue& colour) { mShadowRenderer.setShadowColour(colour); }
         /** Get the colour used to modulate areas in shadow. 
         @remarks This is only applicable for shadow techniques which involve 
         darkening the area in shadow, as opposed to masking out the light. 
@@ -2632,9 +2687,9 @@ namespace Ogre {
         will be visible.
         */
         Real getShadowFarDistance(void) const
-        { return mDefaultShadowFarDist; }
+        { return mShadowRenderer.mDefaultShadowFarDist; }
         Real getShadowFarDistanceSquared(void) const
-        { return mDefaultShadowFarDistSquared; }
+        { return mShadowRenderer.mDefaultShadowFarDistSquared; }
 
         /** Sets the maximum size of the index buffer used to render shadow
             primitives.
@@ -2664,7 +2719,7 @@ namespace Ogre {
         void setShadowIndexBufferSize(size_t size);
         /// Get the size of the shadow index buffer
         size_t getShadowIndexBufferSize(void) const
-        { return mShadowIndexBufferSize; }
+        { return mShadowRenderer.mShadowIndexBufferSize; }
         /** Set the size of the texture used for all texture-based shadows.
         @remarks
             The larger the shadow texture, the better the detail on 
@@ -2738,10 +2793,10 @@ namespace Ogre {
             appropriately (e.g. via setShadowTextureCount)!!
         */
         void setShadowTextureCountPerLightType(Light::LightTypes type, size_t count)
-        { mShadowTextureCountPerType[type] = count; }
+        { mShadowRenderer.mShadowTextureCountPerType[type] = count; }
         /// Get the number of shadow textures is assigned for the given light type.
         size_t getShadowTextureCountPerLightType(Light::LightTypes type) const
-        {return mShadowTextureCountPerType[type]; }
+        {return mShadowRenderer.mShadowTextureCountPerType[type]; }
 
         /** Sets the size and count of textures used in texture-based shadows. 
         @see setShadowTextureSize and setShadowTextureCount for details, this
@@ -2775,11 +2830,11 @@ namespace Ogre {
             to the camera. The value is represented as a proportion of the shadow
             far distance, and the default is 0.6.
         */
-        void setShadowDirLightTextureOffset(Real offset) { mShadowTextureOffset = offset;}
+        void setShadowDirLightTextureOffset(Real offset) { mShadowRenderer.mShadowTextureOffset = offset;}
         /** Gets the proportional distance which a texture shadow which is generated from a
         directional light will be offset into the camera view to make best use of texture space.
         */
-        Real getShadowDirLightTextureOffset(void)  const { return mShadowTextureOffset; }
+        Real getShadowDirLightTextureOffset(void)  const { return mShadowRenderer.mShadowTextureOffset; }
         /** Sets the proportional distance at which texture shadows begin to fade out.
         @remarks
             To hide the edges where texture shadows end (in directional lights)
@@ -2788,7 +2843,7 @@ namespace Ogre {
             begins to fade out. The default is 0.7
         */
         void setShadowTextureFadeStart(Real fadeStart)
-        { mShadowTextureFadeStart = fadeStart; }
+        { mShadowRenderer.mShadowTextureFadeStart = fadeStart; }
         /** Sets the proportional distance at which texture shadows finish to fading out.
         @remarks
         To hide the edges where texture shadows end (in directional lights)
@@ -2797,7 +2852,7 @@ namespace Ogre {
         is completely invisible. The default is 0.9.
         */
         void setShadowTextureFadeEnd(Real fadeEnd)
-        { mShadowTextureFadeEnd = fadeEnd; }
+        { mShadowRenderer.mShadowTextureFadeEnd = fadeEnd; }
 
         /** Sets whether or not texture shadows should attempt to self-shadow.
         @remarks
@@ -2836,11 +2891,9 @@ namespace Ogre {
             Only a single pass is allowed in your material, although multiple
             techniques may be used for hardware fallback.
         */
-        void setShadowTextureCasterMaterial(const MaterialPtr& mat);
+        void setShadowTextureCasterMaterial(const MaterialPtr& mat)
+        { mShadowRenderer.setShadowTextureCasterMaterial(mat); }
 
-        /// @overload
-        /// @deprecated use setShadowTextureCasterMaterial(const MaterialPtr&)
-        OGRE_DEPRECATED void setShadowTextureCasterMaterial(const String& name);
         /** Sets the default material to use for rendering shadow receivers.
         @remarks
             By default shadow receivers are rendered as a post-pass using basic
@@ -2862,11 +2915,8 @@ namespace Ogre {
             Only a single pass is allowed in your material, although multiple
             techniques may be used for hardware fallback.
         */
-        void setShadowTextureReceiverMaterial(const MaterialPtr& mat);
-
-        /// @overload
-        /// @deprecated use setShadowTextureReceiverMaterial(const MaterialPtr&)
-        OGRE_DEPRECATED void setShadowTextureReceiverMaterial(const String& name);
+        void setShadowTextureReceiverMaterial(const MaterialPtr& mat)
+        { mShadowRenderer.setShadowTextureReceiverMaterial(mat); }
 
         /** Sets whether or not shadow casters should be rendered into shadow
             textures using their back faces rather than their front faces. 
@@ -2934,34 +2984,34 @@ namespace Ogre {
             of an infinite far plane based on these heuristics. 
         */
         void setShadowUseInfiniteFarPlane(bool enable) {
-            mShadowUseInfiniteFarPlane = enable; }
+            mShadowRenderer.mShadowUseInfiniteFarPlane = enable; }
 
         /** Is there a stencil shadow based shadowing technique in use? */
         bool isShadowTechniqueStencilBased(void) const
-        { return (mShadowTechnique & SHADOWDETAILTYPE_STENCIL) != 0; }
+        { return (mShadowRenderer.mShadowTechnique & SHADOWDETAILTYPE_STENCIL) != 0; }
         /** Is there a texture shadow based shadowing technique in use? */
         bool isShadowTechniqueTextureBased(void) const
-        { return (mShadowTechnique & SHADOWDETAILTYPE_TEXTURE) != 0; }
+        { return (mShadowRenderer.mShadowTechnique & SHADOWDETAILTYPE_TEXTURE) != 0; }
         /** Is there a modulative shadowing technique in use? */
         bool isShadowTechniqueModulative(void) const
-        { return (mShadowTechnique & SHADOWDETAILTYPE_MODULATIVE) != 0; }
+        { return (mShadowRenderer.mShadowTechnique & SHADOWDETAILTYPE_MODULATIVE) != 0; }
         /** Is there an additive shadowing technique in use? */
         bool isShadowTechniqueAdditive(void) const
-        { return (mShadowTechnique & SHADOWDETAILTYPE_ADDITIVE) != 0; }
+        { return (mShadowRenderer.mShadowTechnique & SHADOWDETAILTYPE_ADDITIVE) != 0; }
         /** Is the shadow technique integrated into primary materials? */
         bool isShadowTechniqueIntegrated(void) const
-        { return (mShadowTechnique & SHADOWDETAILTYPE_INTEGRATED) != 0; }
+        { return (mShadowRenderer.mShadowTechnique & SHADOWDETAILTYPE_INTEGRATED) != 0; }
         /** Is there any shadowing technique in use? */
         bool isShadowTechniqueInUse(void) const
-        { return mShadowTechnique != SHADOWTYPE_NONE; }
+        { return mShadowRenderer.mShadowTechnique != SHADOWTYPE_NONE; }
         /** Sets whether when using a built-in additive shadow mode, user clip
             planes should be used to restrict light rendering.
         */
-        void setShadowUseLightClipPlanes(bool enabled) { mShadowAdditiveLightClip = enabled; }
+        void setShadowUseLightClipPlanes(bool enabled) { mShadowRenderer.mShadowAdditiveLightClip = enabled; }
         /** Gets whether when using a built-in additive shadow mode, user clip
         planes should be used to restrict light rendering.
         */
-        bool getShadowUseLightClipPlanes() const { return mShadowAdditiveLightClip; }
+        bool getShadowUseLightClipPlanes() const { return mShadowRenderer.mShadowAdditiveLightClip; }
 
         /** Sets the active compositor chain of the current scene being rendered.
             @note CompositorChain does this automatically, no need to call manually.
@@ -3011,26 +3061,6 @@ namespace Ogre {
         void destroyStaticGeometry(const String& name);
         /** Remove & destroy all StaticGeometry instances. */
         void destroyAllStaticGeometry(void);
-
-        /** Creates a InstancedGeometry instance suitable for use with this
-            SceneManager.
-        @remarks
-            InstancedGeometry is a way of batching up geometry into a more 
-            efficient form, and still be able to move it. Please 
-            read the InstancedGeometry class documentation for full information.
-        @param name The name to give the new object
-        @return The new InstancedGeometry instance
-        @deprecated use createInstanceManager() with InstanceManager::ShaderBased instead
-        */
-        InstancedGeometry* createInstancedGeometry(const String& name);
-        /** Retrieve a previously created InstancedGeometry instance. */
-        InstancedGeometry* getInstancedGeometry(const String& name) const;
-        /** Remove & destroy a InstancedGeometry instance. */
-        void destroyInstancedGeometry(InstancedGeometry* geom);
-        /** Remove & destroy a InstancedGeometry instance. */
-        void destroyInstancedGeometry(const String& name);
-        /** Remove & destroy all InstancedGeometry instances. */
-        void destroyAllInstancedGeometry(void);
 
         /** Creates an InstanceManager interface to create & manipulate instanced entities
             You need to call this function at least once before start calling createInstancedEntity
@@ -3415,6 +3445,8 @@ namespace Ogre {
         void _handleLodEvents();
 
         IlluminationRenderStage _getCurrentRenderStage() {return mIlluminationStage;}
+
+        const AutoParamDataSource* _getAutoParamDataSource() { return mAutoParamDataSource.get(); }
     };
 
     /** Default implementation of IntersectionSceneQuery. */
@@ -3491,11 +3523,6 @@ namespace Ogre {
     {
         /// A globally unique string identifying the scene manager type
         String typeName;
-        /// A text description of the scene manager.
-        /// @deprecated use manual instead
-        String description;
-        /// A mask describing which sorts of scenes this manager can handle
-        SceneTypeMask sceneTypeMask;
         /// Flag indicating whether world geometry is supported
         bool worldGeometrySupported;
     };

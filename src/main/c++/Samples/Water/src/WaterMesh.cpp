@@ -15,6 +15,8 @@ same license as the rest of the engine.
 
 #include "WaterMesh.h"
 
+#include <cmath>
+
 #define ANIMATIONS_PER_SECOND 100.0f
 
 WaterMesh::WaterMesh(const String& inMeshName, Real planeSize, int inComplexity)
@@ -199,9 +201,9 @@ Real WaterMesh::getHeight(Real x, Real y)
     Real xb = xa + 1 ;
     Real ya = floor(y);
     Real yb = ya + 1 ;
-    Real yaxavg = hat(xa,ya) * (1.0f-fabs(xa-x)) + hat(xb,ya) * (1.0f-fabs(xb-x));
-    Real ybxavg = hat(xa,yb) * (1.0f-fabs(xa-x)) + hat(xb,yb) * (1.0f-fabs(xb-x));
-    Real yavg = yaxavg * (1.0f-fabs(ya-y)) + ybxavg * (1.0f-fabs(yb-y)) ;
+    Real yaxavg = hat(xa,ya) * (1.0f-std::fabs(xa-x)) + hat(xb,ya) * (1.0f-std::fabs(xb-x));
+    Real ybxavg = hat(xa,yb) * (1.0f-std::fabs(xa-x)) + hat(xb,yb) * (1.0f-std::fabs(xb-x));
+    Real yavg = yaxavg * (1.0f-std::fabs(ya-y)) + ybxavg * (1.0f-std::fabs(yb-y)) ;
     return yavg ;
 }
 /* ========================================================================= */
@@ -250,9 +252,7 @@ void WaterMesh::calculateNormals()
         Vector3 v0(buf[3*p0], buf[3*p0+1], buf[3*p0+2]);
         Vector3 v1(buf[3*p1], buf[3*p1+1], buf[3*p1+2]);
         Vector3 v2(buf[3*p2], buf[3*p2+1], buf[3*p2+2]);
-        Vector3 diff1 = v2 - v1 ;
-        Vector3 diff2 = v0 - v1 ;
-        Vector3 fn = diff1.crossProduct(diff2);
+        Vector3 fn = Math::calculateBasicFaceNormalWithoutNormalize(v1, v2, v0);
         vNormals[p0] += fn ;
         vNormals[p1] += fn ;
         vNormals[p2] += fn ;

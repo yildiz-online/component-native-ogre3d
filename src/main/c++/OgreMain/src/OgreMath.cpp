@@ -27,16 +27,6 @@ THE SOFTWARE.
 */
 #include "OgreStableHeaders.h"
 
-#include "OgreMath.h"
-#include "OgreVector2.h"
-#include "OgreVector3.h"
-#include "OgreVector4.h"
-#include "OgreRay.h"
-#include "OgreSphere.h"
-#include "OgreAxisAlignedBox.h"
-#include "OgrePlane.h"
-
-
 namespace Ogre
 {
 
@@ -47,7 +37,7 @@ namespace Ogre
     const Real Math::HALF_PI = Real( 0.5 * PI );
     const Real Math::fDeg2Rad = PI / Real(180.0);
     const Real Math::fRad2Deg = Real(180.0) / PI;
-    const Real Math::LOG2 = log(Real(2.0));
+    const Real Math::LOG2 = std::log(Real(2.0));
 
     int Math::mTrigTableSize;
    Math::AngleUnit Math::msAngleUnit;
@@ -88,9 +78,9 @@ namespace Ogre
         Real angle;
         for (int i = 0; i < mTrigTableSize; ++i)
         {
-            angle = Math::TWO_PI * i / mTrigTableSize;
-            mSinTable[i] = sin(angle);
-            mTanTable[i] = tan(angle);
+            angle = Math::TWO_PI * i / Real(mTrigTableSize);
+            mSinTable[i] = std::sin(angle);
+            mTanTable[i] = std::tan(angle);
         }
     }
     //-----------------------------------------------------------------------   
@@ -146,18 +136,6 @@ namespace Ogre
             return Radian(-HALF_PI);
         }
     }
-    //-----------------------------------------------------------------------
-    Real Math::Sign (Real fValue)
-    {
-        if ( fValue > 0.0 )
-            return 1.0;
-
-        if ( fValue < 0.0 )
-            return -1.0;
-
-        return 0.0;
-    }
-
     //-----------------------------------------------------------------------
     Real Math::UnitRandom ()
     {
@@ -315,39 +293,22 @@ namespace Ogre
         return true;
     }
     //-----------------------------------------------------------------------
-    std::pair<bool, Real> Math::intersects(const Ray& ray, const Plane& plane)
+    std::pair<bool, Real> Math::intersects(const Ray& ray, 
+        const std::list<Plane>& planes, bool normalIsOutside)
     {
-
-        Real denom = plane.normal.dotProduct(ray.getDirection());
-        if (Math::Abs(denom) < std::numeric_limits<Real>::epsilon())
+        std::vector<Plane> planesVec;
+        planesVec.reserve(planes.size());
+        for (std::list<Plane>::const_iterator i = planes.begin(); i != planes.end(); ++i)
         {
-            // Parallel
-            return std::pair<bool, Real>(false, (Real)0);
+            planesVec.push_back(*i);
         }
-        else
-        {
-            Real nom = plane.normal.dotProduct(ray.getOrigin()) + plane.d;
-            Real t = -(nom/denom);
-            return std::pair<bool, Real>(t >= 0, (Real)t);
-        }
-        
+        return intersects(ray, planesVec, normalIsOutside);
     }
     //-----------------------------------------------------------------------
     std::pair<bool, Real> Math::intersects(const Ray& ray, 
-        const vector<Plane>::type& planes, bool normalIsOutside)
+        const std::vector<Plane>& planes, bool normalIsOutside)
     {
-        list<Plane>::type planesList;
-        for (vector<Plane>::type::const_iterator i = planes.begin(); i != planes.end(); ++i)
-        {
-            planesList.push_back(*i);
-        }
-        return intersects(ray, planesList, normalIsOutside);
-    }
-    //-----------------------------------------------------------------------
-    std::pair<bool, Real> Math::intersects(const Ray& ray, 
-        const list<Plane>::type& planes, bool normalIsOutside)
-    {
-        list<Plane>::type::const_iterator planeit, planeitend;
+        std::vector<Plane>::const_iterator planeit, planeitend;
         planeitend = planes.end();
         bool allInside = true;
         std::pair<bool, Real> ret;
@@ -425,48 +386,6 @@ namespace Ogre
             }
         }
         return ret;
-    }
-    //-----------------------------------------------------------------------
-    std::pair<bool, Real> Math::intersects(const Ray& ray, const Sphere& sphere, 
-        bool discardInside)
-    {
-        const Vector3& raydir = ray.getDirection();
-        // Adjust ray origin relative to sphere center
-        const Vector3& rayorig = ray.getOrigin() - sphere.getCenter();
-        Real radius = sphere.getRadius();
-
-        // Check origin inside first
-        if (rayorig.squaredLength() <= radius*radius && discardInside)
-        {
-            return std::pair<bool, Real>(true, (Real)0);
-        }
-
-        // Mmm, quadratics
-        // Build coeffs which can be used with std quadratic solver
-        // ie t = (-b +/- sqrt(b*b + 4ac)) / 2a
-        Real a = raydir.dotProduct(raydir);
-        Real b = 2 * rayorig.dotProduct(raydir);
-        Real c = rayorig.dotProduct(rayorig) - radius*radius;
-
-        // Calc determinant
-        Real d = (b*b) - (4 * a * c);
-        if (d < 0)
-        {
-            // No intersection
-            return std::pair<bool, Real>(false, (Real)0);
-        }
-        else
-        {
-            // BTW, if d=0 there is one intersection, if d > 0 there are 2
-            // But we only want the closest one, so that's ok, just use the 
-            // '-' version of the solver
-            Real t = ( -b - Math::Sqrt(d) ) / (2 * a);
-            if (t < 0)
-                t = ( -b + Math::Sqrt(d) ) / (2 * a);
-            return std::pair<bool, Real>(true, (Real)t);
-        }
-
-
     }
     //-----------------------------------------------------------------------
     std::pair<bool, Real> Math::intersects(const Ray& ray, const AxisAlignedBox& box)
@@ -804,18 +723,6 @@ namespace Ogre
 
     }
     //-----------------------------------------------------------------------
-    bool Math::intersects(const Plane& plane, const AxisAlignedBox& box)
-    {
-        return (plane.getSide(box) == Plane::BOTH_SIDE);
-    }
-    //-----------------------------------------------------------------------
-    bool Math::intersects(const Sphere& sphere, const Plane& plane)
-    {
-        return (
-            Math::Abs(plane.getDistance(sphere.getCenter()))
-            <= sphere.getRadius() );
-    }
-    //-----------------------------------------------------------------------
     Vector3 Math::calculateTangentSpaceVector(
         const Vector3& position1, const Vector3& position2, const Vector3& position3,
         Real u1, Real v1, Real u2, Real v2, Real u3, Real v3)
@@ -854,40 +761,12 @@ namespace Ogre
 
     }
     //-----------------------------------------------------------------------
-    Matrix4 Math::buildReflectionMatrix(const Plane& p)
+    Affine3 Math::buildReflectionMatrix(const Plane& p)
     {
-        return Matrix4(
+        return Affine3(
             -2 * p.normal.x * p.normal.x + 1,   -2 * p.normal.x * p.normal.y,       -2 * p.normal.x * p.normal.z,       -2 * p.normal.x * p.d, 
             -2 * p.normal.y * p.normal.x,       -2 * p.normal.y * p.normal.y + 1,   -2 * p.normal.y * p.normal.z,       -2 * p.normal.y * p.d, 
-            -2 * p.normal.z * p.normal.x,       -2 * p.normal.z * p.normal.y,       -2 * p.normal.z * p.normal.z + 1,   -2 * p.normal.z * p.d, 
-            0,                                  0,                                  0,                                  1);
-    }
-    //-----------------------------------------------------------------------
-    Vector4 Math::calculateFaceNormal(const Vector3& v1, const Vector3& v2, const Vector3& v3)
-    {
-        Vector3 normal = calculateBasicFaceNormal(v1, v2, v3);
-        // Now set up the w (distance of tri from origin
-        return Vector4(normal.x, normal.y, normal.z, -(normal.dotProduct(v1)));
-    }
-    //-----------------------------------------------------------------------
-    Vector3 Math::calculateBasicFaceNormal(const Vector3& v1, const Vector3& v2, const Vector3& v3)
-    {
-        Vector3 normal = (v2 - v1).crossProduct(v3 - v1);
-        normal.normalise();
-        return normal;
-    }
-    //-----------------------------------------------------------------------
-    Vector4 Math::calculateFaceNormalWithoutNormalize(const Vector3& v1, const Vector3& v2, const Vector3& v3)
-    {
-        Vector3 normal = calculateBasicFaceNormalWithoutNormalize(v1, v2, v3);
-        // Now set up the w (distance of tri from origin)
-        return Vector4(normal.x, normal.y, normal.z, -(normal.dotProduct(v1)));
-    }
-    //-----------------------------------------------------------------------
-    Vector3 Math::calculateBasicFaceNormalWithoutNormalize(const Vector3& v1, const Vector3& v2, const Vector3& v3)
-    {
-        Vector3 normal = (v2 - v1).crossProduct(v3 - v1);
-        return normal;
+            -2 * p.normal.z * p.normal.x,       -2 * p.normal.z * p.normal.y,       -2 * p.normal.z * p.normal.z + 1,   -2 * p.normal.z * p.d);
     }
     //-----------------------------------------------------------------------
     Real Math::gaussianDistribution(Real x, Real offset, Real scale)
@@ -900,10 +779,10 @@ namespace Ogre
 
     }
     //---------------------------------------------------------------------
-    Matrix4 Math::makeViewMatrix(const Vector3& position, const Quaternion& orientation, 
-        const Matrix4* reflectMatrix)
+    Affine3 Math::makeViewMatrix(const Vector3& position, const Quaternion& orientation,
+        const Affine3* reflectMatrix)
     {
-        Matrix4 viewMatrix;
+        Affine3 viewMatrix;
 
         // View matrix is:
         //
@@ -923,7 +802,7 @@ namespace Ogre
         Vector3 trans = -rotT * position;
 
         // Make final matrix
-        viewMatrix = Matrix4::IDENTITY;
+        viewMatrix = Affine3::IDENTITY;
         viewMatrix = rotT; // fills upper 3x3
         viewMatrix[0][3] = trans.x;
         viewMatrix[1][3] = trans.y;

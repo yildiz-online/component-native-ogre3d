@@ -356,8 +356,6 @@ namespace Ogre {
         ParticleIterator _getIterator(void);
 
         /** Sets the name of the material to be used for this billboard set.
-            @param
-                name The new name of the material to use for this set.
         */
         virtual void setMaterialName( const String& name, const String& groupName = ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME );
 
@@ -412,7 +410,7 @@ namespace Ogre {
             interval The sampling interval used to generate particles, apply affectors etc. The lower this
             is the more realistic the fast-forward, but it takes more iterations to do it.
         */
-        void fastForward(Real time, Real interval = 0.1);
+        void fastForward(Real time, Real interval = 0.1f);
 
         /** Sets a 'speed factor' on this particle system, which means it scales the elapsed
             real time which has passed by this factor before passing it to the emitters, affectors,
@@ -704,9 +702,9 @@ namespace Ogre {
         /// Used to control if the particle system should emit particles or not.
         bool mIsEmitting;
 
-        typedef list<Particle*>::type ActiveParticleList;
-        typedef list<Particle*>::type FreeParticleList;
-        typedef vector<Particle*>::type ParticlePool;
+        typedef std::list<Particle*> ActiveParticleList;
+        typedef std::list<Particle*> FreeParticleList;
+        typedef std::vector<Particle*> ParticlePool;
 
         /** Sort by direction functor */
         struct SortByDirectionFunctor
@@ -758,11 +756,11 @@ namespace Ogre {
         */
         ParticlePool mParticlePool;
 
-        typedef list<ParticleEmitter*>::type FreeEmittedEmitterList;
-        typedef list<ParticleEmitter*>::type ActiveEmittedEmitterList;
-        typedef vector<ParticleEmitter*>::type EmittedEmitterList;
-        typedef map<String, FreeEmittedEmitterList>::type FreeEmittedEmitterMap;
-        typedef map<String, EmittedEmitterList>::type EmittedEmitterPool;
+        typedef std::list<ParticleEmitter*> FreeEmittedEmitterList;
+        typedef std::list<ParticleEmitter*> ActiveEmittedEmitterList;
+        typedef std::vector<ParticleEmitter*> EmittedEmitterList;
+        typedef std::map<String, FreeEmittedEmitterList> FreeEmittedEmitterMap;
+        typedef std::map<String, EmittedEmitterList> EmittedEmitterPool;
 
         /** Pool of emitted emitters for use and reuse in the active emitted emitter list.
         @remarks
@@ -787,8 +785,8 @@ namespace Ogre {
                 the list with active emitted emitters.        */
         ActiveEmittedEmitterList mActiveEmittedEmitters;
 
-        typedef vector<ParticleEmitter*>::type ParticleEmitterList;
-        typedef vector<ParticleAffector*>::type ParticleAffectorList;
+        typedef std::vector<ParticleEmitter*> ParticleEmitterList;
+        typedef std::vector<ParticleAffector*> ParticleAffectorList;
         
         /// List of particle emitters, ie sources of particles
         ParticleEmitterList mEmitters;

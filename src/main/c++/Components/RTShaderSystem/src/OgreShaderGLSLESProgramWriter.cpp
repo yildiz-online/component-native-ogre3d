@@ -25,13 +25,7 @@ THE SOFTWARE.
 -----------------------------------------------------------------------------
 */
 
-#include "OgreShaderGLSLESProgramWriter.h"
-#include "OgreShaderProgram.h"
-
-#include "OgreShaderFunctionAtom.h"
-#include "OgreRoot.h"
-#include "OgreString.h"
-#include "OgreLogManager.h"
+#include "OgreShaderPrecompiledHeaders.h"
 
 namespace Ogre {
     namespace RTShader {
@@ -214,6 +208,18 @@ namespace Ogre {
 
             os << std::endl;
 
+            for(const auto& p : program->getParameters())
+            {
+                if(p->getType() != GCT_SAMPLER_EXTERNAL_OES)
+                    continue;
+                if(mGLSLVersion > 100)
+                    os << "#extension GL_OES_EGL_image_external_essl3 : require\n";
+                else
+                    os << "#extension GL_OES_EGL_image_external : require\n";
+
+                break;
+            }
+
             // Default precision declaration is required in fragment and vertex shaders.
             os << "precision highp float;" << std::endl;
             os << "precision highp int;" << std::endl;
@@ -294,6 +300,13 @@ namespace Ogre {
             // Now remove duplicate declarations, first we have to sort the vector.
             std::sort(forwardDecl.begin(), forwardDecl.end(), FunctionInvocation::FunctionInvocationLessThan());
             forwardDecl.erase(std::unique(forwardDecl.begin(), forwardDecl.end(), FunctionInvocation::FunctionInvocationCompare()), forwardDecl.end());
+
+            // Write forward declarations as we did not sort by dependency
+            for (auto& decl : forwardDecl)
+            {
+                writeFunctionDeclaration(os, decl, false);
+                os << ";\n";
+            }
 
             for(unsigned int i = 0; i < program->getDependencyCount(); ++i)
             {
@@ -509,9 +522,9 @@ namespace Ogre {
                                     foundEndOfBody = true;
 
                                     // Remove first and last braces
-                                    size_t pos = functionBody.find("{");
+                                    size_t pos = functionBody.find('{');
                                     functionBody.erase(pos, 1);
-                                    pos = functionBody.rfind("}");
+                                    pos = functionBody.rfind('}');
                                     functionBody.erase(pos, 1);
                                     mFunctionCacheMap.insert(FunctionMap::value_type(*functionInvoc, functionBody));
                                 }

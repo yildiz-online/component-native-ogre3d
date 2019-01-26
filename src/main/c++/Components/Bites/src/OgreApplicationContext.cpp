@@ -15,18 +15,22 @@
 #include "OgreOverlaySystem.h"
 #include "OgreDataStream.h"
 #include "OgreBitesConfigDialog.h"
+#include "OgreWindowEventUtilities.h"
 
 #include "OgreConfigPaths.h"
 
-#if OGRE_BITES_HAVE_SDL
-#include <SDL_video.h>
-#include <SDL_syswm.h>
-#endif
-
 #if OGRE_PLATFORM == OGRE_PLATFORM_ANDROID
 #include "OgreArchiveManager.h"
-#include "Android/OgreAPKFileSystemArchive.h"
-#include "Android/OgreAPKZipArchive.h"
+#include "OgreFileSystem.h"
+#include "OgreZip.h"
+#endif
+
+#if OGRE_BITES_HAVE_SDL
+#include <SDL.h>
+#include <SDL_video.h>
+#include <SDL_syswm.h>
+
+#include "SDLInputMapping.h"
 #endif
 
 namespace OgreBites {
@@ -78,11 +82,7 @@ void ApplicationContext::initApp()
     Ogre::Root::getSingleton().clearEventTimes();
 #else
 
-#if OGRE_PLATFORM == OGRE_PLATFORM_NACL
-    mNextRenderer = mRoot->getAvailableRenderers()[0]->getName();
-#else
     if (!oneTimeConfig()) return;
-#endif
 
 #if OGRE_PLATFORM != OGRE_PLATFORM_ANDROID
     // if the context was reconfigured, set requested renderer
@@ -95,16 +95,12 @@ void ApplicationContext::initApp()
 
 void ApplicationContext::closeApp()
 {
-#if OGRE_PLATFORM != OGRE_PLATFORM_ANDROID
-    if (mRoot)
-    {
-        mRoot->saveConfig();
-    }
-#endif
-
     shutdown();
     if (mRoot)
     {
+#if OGRE_PLATFORM != OGRE_PLATFORM_ANDROID
+        mRoot->saveConfig();
+#endif
         OGRE_DELETE mRoot;
         mRoot = NULL;
     }
@@ -126,7 +122,7 @@ bool ApplicationContext::initialiseRTShaderSystem()
     {
         mShaderGenerator = Ogre::RTShader::ShaderGenerator::getSingletonPtr();
 
-#if OGRE_PLATFORM != OGRE_PLATFORM_NACL && OGRE_PLATFORM != OGRE_PLATFORM_WINRT
+#if OGRE_PLATFORM != OGRE_PLATFORM_WINRT
         // Core shader libs not found -> shader generating will fail.
         if (mRTShaderLibPath.empty())
             return false;
@@ -155,9 +151,9 @@ void ApplicationContext::setRTSSWriteShadersToDisk(bool write)
 
     // Set shader cache path.
 #if OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS
-    mShaderGenerator->setShaderCachePath(Ogre::macCachePath());
+    mShaderGenerator->setShaderCachePath(mFSLayer->getWritablePath(""));
 #elif OGRE_PLATFORM == OGRE_PLATFORM_APPLE
-    mShaderGenerator->setShaderCachePath(Ogre::macCachePath() + "/org.ogre3d.RTShaderCache");
+    mShaderGenerator->setShaderCachePath(mFSLayer->getWritablePath("org.ogre3d.RTShaderCache/"));
 #else
     mShaderGenerator->setShaderCachePath(mRTShaderLibPath+"/cache/");
 #endif
@@ -218,7 +214,7 @@ void ApplicationContext::createRoot()
 
     if (!Ogre::FileSystemLayer::fileExists(pluginsPath))
     {
-        pluginsPath = Ogre::FileSystemLayer::resolveBundlePath(OGRE_CONFIG_DIR "/plugins.cfg");
+        pluginsPath = Ogre::FileSystemLayer::resolveBundlePath(OGRE_CONFIG_DIR "/plugins" OGRE_BUILD_SUFFIX ".cfg");
     }
 #   endif
 
@@ -285,13 +281,15 @@ void ApplicationContext::enableShaderCache() const
 
     // Load for a package version of the shaders.
     Ogre::String path = mFSLayer->getWritablePath(SHADER_CACHE_FILENAME);
-    std::fstream inFile(path.c_str(), std::ios::binary);
-    if (inFile.is_open())
+    std::ifstream inFile(path.c_str(), std::ios::binary);
+    if (!inFile.is_open())
     {
-        Ogre::LogManager::getSingleton().logMessage("Loading shader cache from "+path);
-        Ogre::DataStreamPtr istream(new Ogre::FileStreamDataStream(path, &inFile, false));
-        Ogre::GpuProgramManager::getSingleton().loadMicrocodeCache(istream);
+        Ogre::LogManager::getSingleton().logWarning("Could not open '"+path+"'");
+        return;
     }
+    Ogre::LogManager::getSingleton().logMessage("Loading shader cache from '"+path+"'");
+    Ogre::DataStreamPtr istream(new Ogre::FileStreamDataStream(path, &inFile, false));
+    Ogre::GpuProgramManager::getSingleton().loadMicrocodeCache(istream);
 }
 
 void ApplicationContext::addInputListener(NativeWindowType* win, InputListener* lis)
@@ -326,17 +324,13 @@ bool ApplicationContext::frameRenderingQueued(const Ogre::FrameEvent& evt)
 NativeWindowPair ApplicationContext::createWindow(const Ogre::String& name, Ogre::uint32 w, Ogre::uint32 h, Ogre::NameValuePairList miscParams)
 {
     NativeWindowPair ret = {NULL, NULL};
-#if OGRE_PLATFORM == OGRE_PLATFORM_NACL
-    miscParams["pp::Instance"] = Ogre::StringConverter::toString((unsigned long)mNaClInstance);
-    miscParams["SwapCallback"] = Ogre::StringConverter::toString((unsigned long)mNaClSwapCallback);
-    // create 1x1 window - we will resize later
-    ret.render = mRoot->createRenderWindow(name, mInitWidth, mInitHeight, false, &miscParams);
-#elif OGRE_PLATFORM == OGRE_PLATFORM_ANDROID
+#if OGRE_PLATFORM == OGRE_PLATFORM_ANDROID
     miscParams["externalWindowHandle"] = Ogre::StringConverter::toString(reinterpret_cast<size_t>(mWindows[0].native));
     miscParams["androidConfig"] = Ogre::StringConverter::toString(reinterpret_cast<size_t>(mAConfig));
     miscParams["preserveContext"] = "true"; //Optionally preserve the gl context, prevents reloading all resources, this is false by default
 
     mWindows[0].render = Ogre::Root::getSingleton().createRenderWindow(name, 0, 0, false, &miscParams);
+    ret = mWindows[0];
 #else
     Ogre::ConfigOptionMap ropts = mRoot->getRenderSystem()->getConfigOptions();
 
@@ -361,13 +355,23 @@ NativeWindowPair ApplicationContext::createWindow(const Ogre::String& name, Ogre
         miscParams["currentGLContext"] = "true";
     }
 
+
+
 #if OGRE_BITES_HAVE_SDL
     if(!SDL_WasInit(SDL_INIT_VIDEO)) {
         SDL_InitSubSystem(SDL_INIT_VIDEO);
     }
 
+    Uint32 flags = SDL_WINDOW_RESIZABLE;
+
+    if(ropts["Full Screen"].currentValue == "Yes"){
+       flags = SDL_WINDOW_FULLSCREEN;
+    } else {
+       flags = SDL_WINDOW_RESIZABLE;
+    }
+
     ret.native = SDL_CreateWindow(name.c_str(),
-                                SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, w, h, SDL_WINDOW_RESIZABLE);
+                                SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, w, h, flags);
 
 #if OGRE_PLATFORM == OGRE_PLATFORM_EMSCRIPTEN
     SDL_GL_CreateContext(ret.native);
@@ -391,8 +395,8 @@ NativeWindowPair ApplicationContext::createWindow(const Ogre::String& name, Ogre
     mWindows.push_back(ret);
 #endif
 
-#if OGRE_PLATFORM != OGRE_PLATFORM_ANDROID && OGRE_BITES_HAVE_SDL == 0
-    Ogre::WindowEventUtilities::addWindowEventListener(ret.render, this);
+#if OGRE_PLATFORM != OGRE_PLATFORM_ANDROID && !OGRE_BITES_HAVE_SDL
+    WindowEventUtilities::_addRenderWindow(ret.render);
 #endif
 
     return ret;
@@ -413,16 +417,8 @@ void ApplicationContext::initAppForAndroid(AAssetManager* assetMgr, ANativeWindo
 
 Ogre::DataStreamPtr ApplicationContext::openAPKFile(const Ogre::String& fileName)
 {
-    Ogre::MemoryDataStreamPtr stream;
-    AAsset* asset = AAssetManager_open(mAAssetMgr, fileName.c_str(), AASSET_MODE_BUFFER);
-    if(asset)
-    {
-        off_t length = AAsset_getLength(asset);
-        stream.reset(new Ogre::MemoryDataStream(length, true, true));
-        memcpy(stream->getPtr(), AAsset_getBuffer(asset), length);
-        AAsset_close(asset);
-    }
-    return stream;
+    Ogre::Archive* apk = Ogre::ArchiveManager::getSingleton().load("", "APKFileSystem", true);
+    return apk->open(fileName);
 }
 
 void ApplicationContext::_fireInputEventAndroid(AInputEvent* event, int wheel) {
@@ -431,7 +427,7 @@ void ApplicationContext::_fireInputEventAndroid(AInputEvent* event, int wheel) {
     static TouchFingerEvent lastTouch = {0};
 
     if(wheel) {
-        evt.type = SDL_MOUSEWHEEL;
+        evt.type = MOUSEWHEEL;
         evt.wheel.y = wheel;
         _fireInputEvent(evt, 0);
         lastTouch.fingerId = -1; // prevent move-jump after pinch is over
@@ -443,13 +439,13 @@ void ApplicationContext::_fireInputEventAndroid(AInputEvent* event, int wheel) {
 
         switch (action) {
         case AMOTION_EVENT_ACTION_DOWN:
-            evt.type = SDL_FINGERDOWN;
+            evt.type = FINGERDOWN;
             break;
         case AMOTION_EVENT_ACTION_UP:
-            evt.type = SDL_FINGERUP;
+            evt.type = FINGERUP;
             break;
         case AMOTION_EVENT_ACTION_MOVE:
-            evt.type = SDL_FINGERMOTION;
+            evt.type = FINGERMOTION;
             break;
         default:
             return;
@@ -461,7 +457,7 @@ void ApplicationContext::_fireInputEventAndroid(AInputEvent* event, int wheel) {
         evt.tfinger.x = AMotionEvent_getRawX(event, 0) / win->getWidth();
         evt.tfinger.y = AMotionEvent_getRawY(event, 0) / win->getHeight();
 
-        if(evt.type == SDL_FINGERMOTION) {
+        if(evt.type == FINGERMOTION) {
             if(evt.tfinger.fingerId != lastTouch.fingerId)
                 return; // wrong finger
 
@@ -474,7 +470,7 @@ void ApplicationContext::_fireInputEventAndroid(AInputEvent* event, int wheel) {
         if(AKeyEvent_getKeyCode(event) != AKEYCODE_BACK)
             return;
 
-        evt.type = AKeyEvent_getAction(event) == AKEY_EVENT_ACTION_DOWN ? SDL_KEYDOWN : SDL_KEYUP;
+        evt.type = AKeyEvent_getAction(event) == AKEY_EVENT_ACTION_DOWN ? KEYDOWN : KEYUP;
         evt.key.keysym.sym = SDLK_ESCAPE;
     }
 
@@ -493,35 +489,33 @@ void ApplicationContext::_fireInputEvent(const Event& event, uint32_t windowID) 
 
         switch (event.type)
         {
-        case SDL_KEYDOWN:
-            // Ignore repeated signals from key being held down.
-            if (event.key.repeat) break;
+        case KEYDOWN:
             l.keyPressed(event.key);
             break;
-        case SDL_KEYUP:
+        case KEYUP:
             l.keyReleased(event.key);
             break;
-        case SDL_MOUSEBUTTONDOWN:
+        case MOUSEBUTTONDOWN:
             l.mousePressed(event.button);
             break;
-        case SDL_MOUSEBUTTONUP:
+        case MOUSEBUTTONUP:
             l.mouseReleased(event.button);
             break;
-        case SDL_MOUSEWHEEL:
+        case MOUSEWHEEL:
             l.mouseWheelRolled(event.wheel);
             break;
-        case SDL_MOUSEMOTION:
+        case MOUSEMOTION:
             l.mouseMoved(event.motion);
             break;
-        case SDL_FINGERDOWN:
+        case FINGERDOWN:
             // for finger down we have to move the pointer first
             l.touchMoved(event.tfinger);
             l.touchPressed(event.tfinger);
             break;
-        case SDL_FINGERUP:
+        case FINGERUP:
             l.touchReleased(event.tfinger);
             break;
-        case SDL_FINGERMOTION:
+        case FINGERMOTION:
             l.touchMoved(event.tfinger);
             break;
         }
@@ -545,17 +539,14 @@ Ogre::String ApplicationContext::getDefaultMediaDir()
 
 void ApplicationContext::locateResources()
 {
-#if OGRE_PLATFORM == OGRE_PLATFORM_NACL
-    Ogre::ResourceGroupManager::getSingleton().addResourceLocation("Essential.zip", "EmbeddedZip", "Essential");
-    Ogre::ResourceGroupManager::getSingleton().addResourceLocation("Popular.zip", "EmbeddedZip", "General");
-#else
     // load resource paths from config file
     Ogre::ConfigFile cf;
-#   if OGRE_PLATFORM == OGRE_PLATFORM_ANDROID
+#if OGRE_PLATFORM == OGRE_PLATFORM_ANDROID
     Ogre::ArchiveManager::getSingleton().addArchiveFactory( new Ogre::APKFileSystemArchiveFactory(mAAssetMgr) );
     Ogre::ArchiveManager::getSingleton().addArchiveFactory( new Ogre::APKZipArchiveFactory(mAAssetMgr) );
-    cf.load(openAPKFile(mFSLayer->getConfigFilePath("resources.cfg")));
-#   else
+    Ogre::Archive* apk = Ogre::ArchiveManager::getSingleton().load("", "APKFileSystem", true);
+    cf.load(apk->open(mFSLayer->getConfigFilePath("resources.cfg")));
+#else
     Ogre::String resourcesPath = mFSLayer->getConfigFilePath("resources.cfg");
     if (Ogre::FileSystemLayer::fileExists(resourcesPath) || OGRE_PLATFORM == OGRE_PLATFORM_EMSCRIPTEN)
     {
@@ -568,7 +559,7 @@ void ApplicationContext::locateResources()
             Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
     }
 
-#   endif
+#endif
 
     Ogre::String sec, type, arch;
     // go through all specified resource groups
@@ -593,17 +584,17 @@ void ApplicationContext::locateResources()
 
     OgreAssert(!genLocs.empty(), ("Resource Group '"+sec+"' must contain at least one entry").c_str());
 
-    arch = genLocs.front()->archive->getName();
+    arch = genLocs.front().archive->getName();
 
 #if OGRE_PLATFORM == OGRE_PLATFORM_APPLE
-    arch = Ogre::macBundlePath() + "/Contents/Resources/Media";
+    arch = Ogre::FileSystemLayer::resolveBundlePath("Contents/Resources/Media");
 #elif OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS
-    arch = Ogre::macBundlePath() + "/Media";
+    arch = Ogre::FileSystemLayer::resolveBundlePath("Media");
 #else
     arch = Ogre::StringUtil::replaceAll(arch, "Media/../../Tests/Media", "");
     arch = Ogre::StringUtil::replaceAll(arch, "media/../../Tests/Media", "");
-# endif
-    type = genLocs.front()->archive->getType();
+#endif
+    type = genLocs.front().archive->getType();
 
     bool hasCgPlugin = false;
     const Ogre::Root::PluginInstanceList& plugins = getRoot()->getInstalledPlugins();
@@ -675,7 +666,6 @@ void ApplicationContext::locateResources()
         Ogre::ResourceGroupManager::getSingleton().addResourceLocation(mRTShaderLibPath + "/HLSL_Cg", type, sec);
 
 #endif /* OGRE_BUILD_COMPONENT_RTSHADERSYSTEM */
-#endif /* OGRE_PLATFORM == OGRE_PLATFORM_NACL */
 }
 
 void ApplicationContext::loadResources()
@@ -718,7 +708,8 @@ void ApplicationContext::reconfigure(const Ogre::String &renderer, Ogre::NameVal
 
 void ApplicationContext::shutdown()
 {
-    if (Ogre::GpuProgramManager::getSingleton().isCacheDirty())
+    const auto& gpuMgr = Ogre::GpuProgramManager::getSingleton();
+    if (gpuMgr.getSaveMicrocodesToCache() && gpuMgr.isCacheDirty())
     {
         Ogre::String path = mFSLayer->getWritablePath(SHADER_CACHE_FILENAME);
         std::fstream outFile(path.c_str(), std::ios::out | std::ios::binary);
@@ -727,8 +718,10 @@ void ApplicationContext::shutdown()
         {
             Ogre::LogManager::getSingleton().logMessage("Writing shader cache to "+path);
             Ogre::DataStreamPtr ostream(new Ogre::FileStreamDataStream(path, &outFile, false));
-            Ogre::GpuProgramManager::getSingleton().saveMicrocodeCache(ostream);
+            gpuMgr.saveMicrocodeCache(ostream);
         }
+        else
+            Ogre::LogManager::getSingleton().logWarning("Cannot open shader cache for writing "+path);
     }
 
 #ifdef OGRE_BUILD_COMPONENT_RTSHADERSYSTEM
@@ -740,7 +733,7 @@ void ApplicationContext::shutdown()
     {
 #if !OGRE_BITES_HAVE_SDL
         // remove window event listener before destroying it
-        Ogre::WindowEventUtilities::removeWindowEventListener(it->render, this);
+        WindowEventUtilities::_removeRenderWindow(it->render);
 #endif
         mRoot->destroyRenderTarget(it->render);
     }
@@ -796,16 +789,24 @@ void ApplicationContext::pollEvents()
                     continue;
 
                 Ogre::RenderWindow* win = it->render;
-                win->resize(event.window.data1, event.window.data2);
                 win->windowMovedOrResized();
                 windowResized(win);
             }
             break;
         default:
-            _fireInputEvent(event, event.window.windowID);
+            _fireInputEvent(convert(event), event.window.windowID);
             break;
         }
     }
+
+#   if OGRE_PLATFORM == OGRE_PLATFORM_APPLE
+    // hacky workaround for black window on OSX
+    for(const auto& win : mWindows)
+    {
+        SDL_SetWindowSize(win.native, win.render->getWidth(), win.render->getHeight());
+        win.render->windowMovedOrResized();
+    }
+#   endif
 #elif OGRE_PLATFORM == OGRE_PLATFORM_ANDROID
     for(WindowList::iterator it = mWindows.begin(); it != mWindows.end(); ++it)
     {
@@ -813,6 +814,9 @@ void ApplicationContext::pollEvents()
         win->windowMovedOrResized();
         windowResized(win);
     }
+#else
+    // just avoid "window not responding"
+    WindowEventUtilities::messagePump();
 #endif
 }
 

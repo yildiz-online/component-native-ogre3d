@@ -96,9 +96,8 @@ class _OgreSampleClassExport Sample_Shadows : public SdkSample
 {
 protected:
     Entity* mAthene;
-    AnimationState* mAnimState;
     Entity* pPlaneEnt;
-    vector<Entity*>::type pColumns;
+    std::vector<Entity*> pColumns;
     Light* mLight;
     Light* mSunLight;
     SceneNode* mLightNode;
@@ -140,17 +139,8 @@ protected:
     LiSPSMShadowCameraSetup* mLiSPSMSetup;
 
 public:
-
-    bool frameEnded(const FrameEvent& evt)
-    {
-        if (mAnimState)
-                mAnimState->addTime(evt.timeSinceLastFrame);
-        return SdkSample::frameEnded(evt);
-    }
-
     Sample_Shadows()
-        : mAnimState(0)
-        , mLightNode(0)
+        : mLightNode(0)
         , mLightAnimationState(0)
         , mMinLightColour(0.2, 0.1, 0.0)
         , mMaxLightColour(0.5, 0.3, 0.1)
@@ -250,8 +240,7 @@ protected:
         mLightNode->attachObject(bbs);
 
         // create controller, after this is will get updated on its own
-        ControllerFunctionRealPtr func = ControllerFunctionRealPtr(
-            new WaveformControllerFunction(Ogre::WFT_SINE, 0.75, 0.5));
+        ControllerFunctionRealPtr func = WaveformControllerFunction::create(Ogre::WFT_SINE, 0.75, 0.5);
         ControllerManager& contMgr = ControllerManager::getSingleton();
         ControllerValueRealPtr val = ControllerValueRealPtr(
             new LightWibbler(mLight, bb, mMinLightColour, mMaxLightColour, 
@@ -293,8 +282,12 @@ protected:
         key = track->createNodeKeyFrame(20);//K == A
         key->setTranslate(Vector3(300,750,-700));
         // Create a new animation state to track this
-        mAnimState = mSceneMgr->createAnimationState("LightTrack");
-        mAnimState->setEnabled(true);
+        auto animState = mSceneMgr->createAnimationState("LightTrack");
+        animState->setEnabled(true);
+
+        auto& controllerMgr = ControllerManager::getSingleton();
+        controllerMgr.createFrameTimePassthroughController(AnimationStateControllerValue::create(animState, true));
+
         // Make light node look at origin, this is for when we
         // change the moving light to a spotlight
         mLightNode->setAutoTracking(true, mSceneMgr->getRootSceneNode());
@@ -438,7 +431,6 @@ protected:
             // Change moving light to spotlight
             // Point light, movable, reddish
             mLight->setType(Light::LT_SPOTLIGHT);
-            mLight->setDirection(Vector3::NEGATIVE_UNIT_Z);
             mLight->setCastShadows(true);
             mLight->setDiffuseColour(mMinLightColour);
             mLight->setSpecularColour(1, 1, 1);
@@ -670,7 +662,7 @@ protected:
         // Sort out base materials
         pPlaneEnt->setMaterialName(BASIC_ROCKWALL_MATERIAL);
         mAthene->setMaterialName(BASIC_ATHENE_MATERIAL);
-        for (vector<Entity*>::type::iterator i = pColumns.begin();
+        for (std::vector<Entity*>::iterator i = pColumns.begin();
             i != pColumns.end(); ++i)
         {
             (*i)->setMaterialName(BASIC_ROCKWALL_MATERIAL);
@@ -712,7 +704,7 @@ protected:
                 // Sort out base materials
                 pPlaneEnt->setMaterialName(CUSTOM_ROCKWALL_MATERIAL);
                 mAthene->setMaterialName(CUSTOM_ATHENE_MATERIAL);
-                for (vector<Entity*>::type::iterator i = pColumns.begin();
+                for (std::vector<Entity*>::iterator i = pColumns.begin();
                     i != pColumns.end(); ++i)
                 {
                     (*i)->setMaterialName(CUSTOM_ROCKWALL_MATERIAL);
@@ -741,7 +733,7 @@ protected:
                 // Sort out base materials
                 pPlaneEnt->setMaterialName(CUSTOM_ROCKWALL_MATERIAL + "/PCF");
                 mAthene->setMaterialName(CUSTOM_ATHENE_MATERIAL + "/PCF");
-                for (vector<Entity*>::type::iterator i = pColumns.begin();
+                for (std::vector<Entity*>::iterator i = pColumns.begin();
                     i != pColumns.end(); ++i)
                 {
                     (*i)->setMaterialName(CUSTOM_ROCKWALL_MATERIAL + "/PCF");

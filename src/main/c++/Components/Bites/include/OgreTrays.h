@@ -187,7 +187,6 @@ namespace OgreBites
     };
 
     typedef std::vector<Widget*> WidgetList;
-    typedef Ogre::VectorIterator<WidgetList> WidgetIterator;
 
     /**
     Basic button class.
@@ -394,12 +393,6 @@ namespace OgreBites
 
         void clearItems();
 
-        /// @deprecated use getNumItems
-        OGRE_DEPRECATED size_t getItemsCount()
-        {
-            return mItems.size();
-        }
-
         void selectItem(size_t index, bool notifyListener = true);
 
         bool containsItem(const Ogre::DisplayString& item);
@@ -574,9 +567,9 @@ namespace OgreBites
         */
         Ogre::Real getSnappedValue(Ogre::Real percentage)
         {
-            percentage = Ogre::Math::Clamp<Ogre::Real>(percentage, 0, 1);
+            percentage = Ogre::Math::saturate(percentage);
             unsigned int whichMarker = (unsigned int) (percentage * (mMaxValue - mMinValue) / mInterval + 0.5);
-            return whichMarker * mInterval + mMinValue;
+            return float(whichMarker) * mInterval + mMinValue;
         }
 
         Ogre::TextAreaOverlayElement* mTextArea;
@@ -935,7 +928,7 @@ namespace OgreBites
         script parsing takes up most time, so the default value is 0.7.
         */
         void showLoadingBar(unsigned int numGroupsInit = 1, unsigned int numGroupsLoad = 1,
-            Ogre::Real initProportion = 0.7);
+            Ogre::Real initProportion = 0.7f);
 
         void hideLoadingBar();
 
@@ -965,12 +958,6 @@ namespace OgreBites
         bool isDialogVisible();
 
         /**
-        Gets a widget from a tray by place.
-        @deprecated use getWidgets() instead
-        */
-        OGRE_DEPRECATED Widget* getWidget(TrayLocation trayLoc, unsigned int place);
-
-        /**
         Gets a widget from a tray by name.
         */
         Widget* getWidget(TrayLocation trayLoc, const Ogre::String& name);
@@ -984,18 +971,6 @@ namespace OgreBites
         Gets the number of widgets in total.
         */
         unsigned int getNumWidgets();
-
-        /**
-        Gets the number of widgets in a tray.
-        @deprecated use getWidgets() instead
-        */
-        OGRE_DEPRECATED size_t getNumWidgets(TrayLocation trayLoc);
-
-        /**
-        Gets all the widgets of a specific tray.
-        @deprecated use getWidgets() instead
-        */
-        OGRE_DEPRECATED WidgetIterator getWidgetIterator(TrayLocation trayLoc);
 
         /**
         Gets all the widgets of a specific tray.
@@ -1104,7 +1079,7 @@ namespace OgreBites
 
         void resourceGroupScriptingStarted(const Ogre::String& groupName, size_t scriptCount)
         {
-            mLoadInc = mGroupInitProportion / scriptCount;
+            mLoadInc = mGroupInitProportion / float(scriptCount);
             mLoadBar->setCaption("Parsing...");
             windowUpdate();
         }
@@ -1123,7 +1098,7 @@ namespace OgreBites
 
         void resourceGroupLoadStarted(const Ogre::String& groupName, size_t resourceCount)
         {
-            mLoadInc = mGroupLoadProportion / resourceCount;
+            mLoadInc = mGroupLoadProportion / float(resourceCount);
             mLoadBar->setCaption("Loading...");
             windowUpdate();
         }
@@ -1220,6 +1195,7 @@ namespace OgreBites
         Ogre::GuiHorizontalAlignment mTrayWidgetAlign[10];   // tray widget alignments
         Ogre::Timer* mTimer;                  // Root::getSingleton().getTimer()
         unsigned long mLastStatUpdateTime;    // The last time the stat text were updated
+        Ogre::Vector2 mCursorPos;             // current cursor position
 
     };
 }

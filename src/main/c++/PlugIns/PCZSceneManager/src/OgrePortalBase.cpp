@@ -45,7 +45,7 @@ PortalBase::PortalBase(const String& name, const PORTAL_TYPE type)
     mLocalsUpToDate(false),
     mDerivedUpToDate(false),
     // set prevWorldTransform to a zero'd out matrix
-    mPrevWorldTransform(Matrix4::ZERO),
+    mPrevWorldTransform(Affine3::ZERO),
     // default to enabled
     mEnabled(true),
     mWasMoved(true)
@@ -167,7 +167,6 @@ void PortalBase::setCorners(const Vector3* corners)
 void PortalBase::calcDirectionAndRadius(void) const
 {
     Vector3 radiusVector;
-    Vector3 side1, side2;
 
     // for AAB building.
     Vector3 min(Math::POS_INFINITY, Math::POS_INFINITY, Math::POS_INFINITY);
@@ -177,11 +176,7 @@ void PortalBase::calcDirectionAndRadius(void) const
     {
     default:
     case PORTAL_TYPE_QUAD:
-        // first calculate local direction
-        side1 = mCorners[1] - mCorners[0];
-        side2 = mCorners[2] - mCorners[0];
-        mDirection = side1.crossProduct(side2);
-        mDirection.normalise();
+        mDirection = Math::calculateBasicFaceNormal(mCorners[0], mCorners[1], mCorners[2]);
         // calculate local cp
         mLocalCP = Vector3::ZERO;
         for (int i=0;i<4;i++)
@@ -263,8 +258,7 @@ void PortalBase::updateDerivedValues(void) const
             mCurrentHomeZone->setPortalsUpdated(true);
         }
         // save world transform
-        Matrix4 transform = mParentNode->_getFullTransform();
-        Matrix3 rotation;
+        Affine3 transform = mParentNode->_getFullTransform();
         // save off the current DerivedCP
         mPrevDerivedCP = mDerivedCP;
         mDerivedCP = transform * mLocalCP;
@@ -276,8 +270,7 @@ void PortalBase::updateDerivedValues(void) const
             {
                 mDerivedCorners[i] =  transform * mCorners[i];
             }
-            transform.extract3x3Matrix(rotation);
-            mDerivedDirection = rotation * mDirection;
+            mDerivedDirection = transform.linear() * mDirection;
             break;
         case PORTAL_TYPE_AABB:
             {
@@ -298,7 +291,7 @@ void PortalBase::updateDerivedValues(void) const
             }
             break;
         }
-        if (mPrevWorldTransform != Matrix4::ZERO)
+        if (mPrevWorldTransform != Affine3::ZERO)
         {
             // save previous calc'd plane
             mPrevDerivedPlane = mDerivedPlane;
@@ -321,13 +314,13 @@ void PortalBase::updateDerivedValues(void) const
             // this is first time, so there is no previous, so prev = current.
             mPrevDerivedPlane = mDerivedPlane;
             mPrevDerivedCP = mDerivedCP;
-            mPrevWorldTransform = Matrix4::IDENTITY;
+            mPrevWorldTransform = Affine3::IDENTITY;
             mPrevWorldTransform = transform;
         }
     }
     else // no associated node, so just use the local values as derived values
     {
-        if (mPrevWorldTransform != Matrix4::ZERO)
+        if (mPrevWorldTransform != Affine3::ZERO)
         {
             // save off the current DerivedCP
             mPrevDerivedCP = mDerivedCP;
@@ -365,7 +358,7 @@ void PortalBase::updateDerivedValues(void) const
             // this is first time, so there is no previous, so prev = current.
             mPrevDerivedPlane = mDerivedPlane;
             // flag as initialized
-            mPrevWorldTransform = Matrix4::IDENTITY;
+            mPrevWorldTransform = Affine3::IDENTITY;
         }
     }
 

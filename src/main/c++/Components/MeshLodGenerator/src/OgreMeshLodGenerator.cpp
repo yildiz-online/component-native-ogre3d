@@ -26,25 +26,7 @@
  * -----------------------------------------------------------------------------
  */
 
-#include "OgreMeshLodGenerator.h"
-#include "OgrePixelCountLodStrategy.h"
-#include "OgreLodWorkQueueWorker.h"
-#include "OgreLodWorkQueueInjector.h"
-#include "OgreLodInputProvider.h"
-#include "OgreLodInputProviderMesh.h"
-#include "OgreLodInputProviderBuffer.h"
-#include "OgreLodOutputProvider.h"
-#include "OgreLodOutputProviderMesh.h"
-#include "OgreLodOutputProviderCompressedMesh.h"
-#include "OgreLodOutputProviderBuffer.h"
-#include "OgreLodOutputProviderCompressedBuffer.h"
-#include "OgreLodCollapseCost.h"
-#include "OgreLodCollapseCostCurvature.h"
-#include "OgreLodCollapseCostProfiler.h"
-#include "OgreLodCollapseCostOutside.h"
-#include "OgreLodData.h"
-#include "OgreLodCollapser.h"
-
+#include "OgreMeshLodPrecompiledHeaders.h"
 
 namespace Ogre
 {
@@ -105,7 +87,7 @@ void MeshLodGenerator::_configureMeshLodUsage(const LodConfig& lodConfig)
     lodConfig.mesh->setLodStrategy(lodConfig.strategy);
     MeshLodUsage usage;
     ushort n = 0;
-    lodConfig.mesh->_setLodInfo(ushort(lodConfig.levels.size()) + 1); // add Lod levels
+    lodConfig.mesh->_setLodInfo(Math::uint16Cast(lodConfig.levels.size() + 1)); // add Lod levels
     for(size_t i = 0; i < lodConfig.levels.size(); i++) {
         // Record usages. First Lod usage is the mesh itself.
 

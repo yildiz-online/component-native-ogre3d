@@ -28,12 +28,7 @@ THE SOFTWARE.
 #include "OgreStableHeaders.h"
 #include "OgreAnimation.h"
 #include "OgreKeyFrame.h"
-#include "OgreException.h"
 #include "OgreEntity.h"
-#include "OgreSkeleton.h"
-#include "OgreBone.h"
-#include "OgreMesh.h"
-
 #include "OgreSubEntity.h"
 
 namespace Ogre {
@@ -552,7 +547,7 @@ namespace Ogre {
     void Animation::optimiseNodeTracks(bool discardIdentityTracks)
     {
         // Iterate over the node tracks and identify those with no useful keyframes
-        list<unsigned short>::type tracksToDestroy;
+        std::list<unsigned short> tracksToDestroy;
         NodeTrackList::iterator i;
         for (i = mNodeTrackList.begin(); i != mNodeTrackList.end(); ++i)
         {
@@ -570,7 +565,7 @@ namespace Ogre {
         }
 
         // Now destroy the tracks we marked for death
-        for(list<unsigned short>::type::iterator h = tracksToDestroy.begin();
+        for(std::list<unsigned short>::iterator h = tracksToDestroy.begin();
             h != tracksToDestroy.end(); ++h)
         {
             destroyNodeTrack(*h);
@@ -580,7 +575,7 @@ namespace Ogre {
     void Animation::optimiseVertexTracks(void)
     {
         // Iterate over the node tracks and identify those with no useful keyframes
-        list<unsigned short>::type tracksToDestroy;
+        std::list<unsigned short> tracksToDestroy;
         VertexTrackList::iterator i;
         for (i = mVertexTrackList.begin(); i != mVertexTrackList.end(); ++i)
         {
@@ -598,7 +593,7 @@ namespace Ogre {
         }
 
         // Now destroy the tracks we marked for death
-        for(list<unsigned short>::type::iterator h = tracksToDestroy.begin();
+        for(std::list<unsigned short>::iterator h = tracksToDestroy.begin();
             h != tracksToDestroy.end(); ++h)
         {
             destroyVertexTrack(*h);
@@ -649,7 +644,7 @@ namespace Ogre {
         Real totalAnimationLength = mLength;
 
         if( timePos > totalAnimationLength && totalAnimationLength > 0.0f )
-            timePos = fmod( timePos, totalAnimationLength );
+            timePos = std::fmod( timePos, totalAnimationLength );
 
         // Search for global index
         KeyFrameTimeList::iterator it =

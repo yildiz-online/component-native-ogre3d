@@ -25,8 +25,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 -----------------------------------------------------------------------------
 */
-#include "OgreStableHeaders.h"
-
 #include "OgreRoot.h"
 #include "OgreRenderSystem.h"
 #include "OgreOverlayElement.h"
@@ -35,6 +33,7 @@ THE SOFTWARE.
 #include "OgreException.h"
 #include "OgreMaterialManager.h"
 #include "OgreOverlayContainer.h"
+#include "OgreResourceGroupManager.h"
 
 namespace Ogre {
 
@@ -51,6 +50,8 @@ namespace Ogre {
     OverlayElementCommands::CmdHorizontalAlign OverlayElement::msHorizontalAlignCmd;
     OverlayElementCommands::CmdVerticalAlign OverlayElement::msVerticalAlignCmd;
     OverlayElementCommands::CmdVisible OverlayElement::msVisibleCmd;
+
+    const String& OverlayElement::DEFAULT_RESOURCE_GROUP = ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME;
     //---------------------------------------------------------------------
     OverlayElement::OverlayElement(const String& name)
       : mName(name)
@@ -331,12 +332,11 @@ namespace Ogre {
         mMaterial->setDepthCheckEnabled(false);
     }
 
-    void OverlayElement::setMaterialName(const String& matName)
+    void OverlayElement::setMaterialName(const String& matName, const String& group)
     {
         if (!matName.empty())
         {
-            mMaterial = MaterialManager::getSingleton().getByName(
-                matName, ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME);
+            mMaterial = MaterialManager::getSingleton().getByName(matName, group);
             if (!mMaterial)
                 OGRE_EXCEPT( Exception::ERR_ITEM_NOT_FOUND, "Could not find material " + matName,
                     "OverlayElement::setMaterialName" );

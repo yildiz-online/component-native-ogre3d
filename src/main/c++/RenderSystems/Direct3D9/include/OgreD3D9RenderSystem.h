@@ -68,9 +68,7 @@ namespace Ogre
         
     private:
         /// Direct3D
-        IDirect3D9*  mD3D;      
-        // Stored options
-        ConfigOptionMap mOptions;
+        IDirect3D9*  mD3D;
         // TODO: remove following fields, use values directly from mOptions map as other render systems does
         size_t mFSAASamples;
         String mFSAAHint;
@@ -97,6 +95,8 @@ namespace Ogre
         /// Tells whether the system is initialized with DirectX 9Ex driver
         /// Read more in http://msdn.microsoft.com/en-us/library/windows/desktop/ee890072(v=vs.85).aspx
         bool mIsDirectX9Ex;
+
+        bool mEnableFixedPipeline;
 
         /// structure holding texture unit settings for every stage
         struct sD3DTextureStageDesc
@@ -166,19 +166,19 @@ namespace Ogre
         bool checkVertexTextureFormats(D3D9RenderWindow* renderWindow) const;
         void detachRenderTargetImpl(const String& name);
         
-        OGRE_HashMap<IDirect3DDevice9*, unsigned short> mCurrentLights;
+        std::unordered_map<IDirect3DDevice9*, unsigned short> mCurrentLights;
         /// Saved last view matrix
         Matrix4 mViewMatrix;
 
         D3DXMATRIX mDxViewMat, mDxProjMat, mDxWorldMat;
     
-        typedef vector<D3D9RenderWindow*>::type D3D9RenderWindowList;
+        typedef std::vector<D3D9RenderWindow*> D3D9RenderWindowList;
         // List of additional windows after the first (swap chains)
         D3D9RenderWindowList mRenderWindows;
         
         /** Mapping of texture format -> DepthStencil. Used as cache by _getDepthStencilFormatFor
         */
-        typedef OGRE_HashMap<unsigned int, D3DFORMAT> DepthStencilHash;
+        typedef std::unordered_map<unsigned int, D3DFORMAT> DepthStencilHash;
         DepthStencilHash mDepthStencilHash;
 
         MultiheadUseType mMultiheadUse;
@@ -198,7 +198,6 @@ namespace Ogre
         virtual void initConfigOptions();
 
         // Overridden RenderSystem functions
-        ConfigOptionMap& getConfigOptions();
         String validateConfigOptions();
         RenderWindow* _initialise( bool autoCreateWindow, const String& windowTitle = "OGRE Render Window"  );
         /// @copydoc RenderSystem::_createRenderWindow
@@ -283,17 +282,17 @@ namespace Ogre
         void _setPointParameters(Real size, bool attenuationEnabled, 
             Real constant, Real linear, Real quadratic, Real minSize, Real maxSize);
         void _setTexture(size_t unit, bool enabled, const TexturePtr &texPtr);
+        void _setSampler(size_t unit, Sampler& sampler);
         void _setVertexTexture(size_t unit, const TexturePtr& tex);
         void _disableTextureUnit(size_t texUnit);
         void _setTextureCoordSet( size_t unit, size_t index );
         void _setTextureCoordCalculation(size_t unit, TexCoordCalcMethod m, 
             const Frustum* frustum = 0);
         void _setTextureBlendMode( size_t unit, const LayerBlendModeEx& bm );
-        void _setTextureAddressingMode(size_t stage, const TextureUnitState::UVWAddressingMode& uvw);
+        void _setTextureAddressingMode(size_t stage, const Sampler::UVWAddressingMode& uvw);
         void _setTextureBorderColour(size_t stage, const ColourValue& colour);
         void _setTextureMipmapBias(size_t unit, float bias);
         void _setTextureMatrix( size_t unit, const Matrix4 &xform );
-        void _setSceneBlending( SceneBlendFactor sourceFactor, SceneBlendFactor destFactor, SceneBlendOperation op );
         void _setSeparateSceneBlending( SceneBlendFactor sourceFactor, SceneBlendFactor destFactor, SceneBlendFactor sourceFactorAlpha, SceneBlendFactor destFactorAlpha, SceneBlendOperation op, SceneBlendOperation alphaOp );
         void _setAlphaRejectSettings( CompareFunction func, unsigned char value, bool alphaToCoverage );
         void _setViewport( Viewport *vp );      
@@ -335,7 +334,7 @@ namespace Ogre
         void unbindGpuProgram(GpuProgramType gptype);
 
         void bindGpuProgramParameters(GpuProgramType gptype, 
-            GpuProgramParametersSharedPtr params, uint16 variabilityMask);
+            const GpuProgramParametersPtr& params, uint16 variabilityMask);
         void bindGpuProgramPassIterationParameters(GpuProgramType gptype);
 
         void setScissorTest(bool enabled, size_t left = 0, size_t top = 0, size_t right = 800, size_t bottom = 600);

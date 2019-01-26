@@ -28,8 +28,6 @@ THE SOFTWARE.
 #include "OgreStableHeaders.h"
 #include "OgreCompositionTargetPass.h"
 #include "OgreCompositionPass.h"
-#include "OgreMaterialManager.h"
-#include "OgreRoot.h"
 
 namespace Ogre {
 
@@ -123,9 +121,10 @@ bool CompositionTargetPass::getShadowsEnabled(void) const
     return mShadowsEnabled;
 }
 //-----------------------------------------------------------------------
-CompositionPass *CompositionTargetPass::createPass()
+CompositionPass *CompositionTargetPass::createPass(CompositionPass::PassType type)
 {
     CompositionPass *t = OGRE_NEW CompositionPass(this);
+    t->setType(type);
     mPasses.push_back(t);
     return t;
 }

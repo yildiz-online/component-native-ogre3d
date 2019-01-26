@@ -45,13 +45,14 @@ namespace Ogre {
         uint32 mVAO;
         bool mNeedsUpdate;
 
-        vector<std::pair<uint32, HardwareVertexBuffer*> >::type mAttribsBound;
-        vector<uint32>::type mInstanceAttribsBound;
+        std::vector<std::pair<uint32, HardwareVertexBuffer*> > mAttribsBound;
+        std::vector<uint32> mInstanceAttribsBound;
         size_t mVertexStart;
 
         void notifyChanged() { mNeedsUpdate = true; }
     public:
         GLVertexArrayObject();
+        ~GLVertexArrayObject();
         void notifyContextDestroyed(GLContext* context) { if(mCreatorContext == context) { mCreatorContext = 0; mVAO = 0; } }
         void bind(GLRenderSystemCommon* rs);
         bool needsUpdate(VertexBufferBinding* vertexBufferBinding, size_t vertexStart);

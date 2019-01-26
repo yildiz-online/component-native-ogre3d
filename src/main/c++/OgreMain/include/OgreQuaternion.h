@@ -255,7 +255,7 @@ namespace Ogre {
             therefore be careful if your code relies in the order of the operands.
             This is specially important in IK animation.
         */
-        inline bool orientationEquals( const Quaternion& other, Real tolerance = 1e-3 ) const
+        inline bool orientationEquals( const Quaternion& other, Real tolerance = 1e-3f ) const
         {
             Real d = this->Dot(other);
             return 1 - d*d < tolerance;
@@ -329,7 +329,7 @@ namespace Ogre {
         /** Function for writing to a stream. Outputs "Quaternion(w, x, y, z)" with w,x,y,z
             being the member values of the quaternion.
         */
-        inline _OgreExport friend std::ostream& operator <<
+        inline friend std::ostream& operator <<
             ( std::ostream& o, const Quaternion& q )
         {
             o << "Quaternion(" << q.w << ", " << q.x << ", " << q.y << ", " << q.z << ")";

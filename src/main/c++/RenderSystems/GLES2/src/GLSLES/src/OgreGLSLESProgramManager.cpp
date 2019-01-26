@@ -69,6 +69,7 @@ namespace Ogre {
         mTypeEnumMap.insert(StringToEnumMap::value_type("sampler2D", GL_SAMPLER_2D));
         mTypeEnumMap.insert(StringToEnumMap::value_type("samplerCube", GL_SAMPLER_CUBE));
         mTypeEnumMap.insert(StringToEnumMap::value_type("sampler2DShadow", GL_SAMPLER_2D_SHADOW_EXT));
+        mTypeEnumMap.insert(StringToEnumMap::value_type("samplerExternalOES", GL_SAMPLER_EXTERNAL_OES));
         mTypeEnumMap.insert(StringToEnumMap::value_type("int", GL_INT));
         mTypeEnumMap.insert(StringToEnumMap::value_type("ivec2", GL_INT_VEC2));
         mTypeEnumMap.insert(StringToEnumMap::value_type("ivec3", GL_INT_VEC3));
@@ -278,6 +279,9 @@ namespace Ogre {
         case GL_SAMPLER_2D_SHADOW_EXT:
             defToUpdate.constType = GCT_SAMPLER2DSHADOW;
             break;
+        case GL_SAMPLER_EXTERNAL_OES:
+            defToUpdate.constType = GCT_SAMPLER_EXTERNAL_OES;
+            break;
         case GL_INT:
             defToUpdate.constType = GCT_INT1;
             break;
@@ -433,7 +437,7 @@ namespace Ogre {
                 String paramName = String( uniformName );
 
                 // If the uniform name has a "[" in it then its an array element uniform.
-                String::size_type arrayStart = paramName.find("[");
+                String::size_type arrayStart = paramName.find('[');
                 if (arrayStart != String::npos)
                 {
                     // If not the first array element then skip it and continue to the next uniform

@@ -43,8 +43,7 @@ namespace Ogre {
     void GL3PlusFBOMultiRenderTarget::bindSurfaceImpl(size_t attachment, RenderTexture *target)
     {
         // Check if the render target is in the rendertarget->FBO map
-        GL3PlusFrameBufferObject *fbobj = 0;
-        target->getCustomAttribute(GLRenderTexture::CustomAttributeString_FBO, &fbobj);
+        auto fbobj = dynamic_cast<GLRenderTarget*>(target)->getFBO();
         assert(fbobj);
         fbo.bindSurface(attachment, fbobj->getSurface(0));
 
@@ -67,6 +66,10 @@ namespace Ogre {
         if(name == GLRenderTexture::CustomAttributeString_FBO)
         {
             *static_cast<GL3PlusFrameBufferObject **>(pData) = &fbo;
+        }
+        else if(name == GLRenderTexture::CustomAttributeString_GLCONTEXT)
+        {
+            *static_cast<GLContext**>(pData) = fbo.getContext();
         }
     }
 

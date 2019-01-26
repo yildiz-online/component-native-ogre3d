@@ -31,6 +31,7 @@ THE SOFTWARE.
 #include "OgreStreamSerialiser.h"
 #include "OgreLogManager.h"
 #include "OgreTerrainAutoUpdateLod.h"
+#include <cmath>
 #include <iomanip>
 
 namespace Ogre
@@ -617,8 +618,8 @@ namespace Ogre
         terrainPos.x += offset;
         terrainPos.y += offset;
 
-        *x = static_cast<long>(floor(terrainPos.x / mTerrainWorldSize));
-        *y = static_cast<long>(floor(terrainPos.y / mTerrainWorldSize));
+        *x = static_cast<long>(std::floor(terrainPos.x / mTerrainWorldSize));
+        *y = static_cast<long>(std::floor(terrainPos.y / mTerrainWorldSize));
 
 
     }
@@ -963,8 +964,7 @@ namespace Ogre
     void TerrainGroup::loadGroupDefinition(StreamSerialiser& ser)
     {
         if (!ser.readChunkBegin(CHUNK_ID, CHUNK_VERSION))
-            OGRE_EXCEPT(Exception::ERR_ITEM_NOT_FOUND, 
-                "Stream does not contain TerrainGroup data", __FUNCTION__);
+            OGRE_EXCEPT(Exception::ERR_ITEM_NOT_FOUND, "Stream does not contain TerrainGroup data");
 
         // Base details
         ser.read(&mAlignment);

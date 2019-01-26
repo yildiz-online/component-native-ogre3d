@@ -48,9 +48,8 @@ namespace Ogre {
         uint32 free: 1;
     };
 #define SCRATCH_POOL_SIZE 1 * 1024 * 1024
-#define SCRATCH_ALIGNMENT 32
 
-    GL3PlusHardwareBufferManagerBase::GL3PlusHardwareBufferManagerBase()
+    GL3PlusHardwareBufferManager::GL3PlusHardwareBufferManager()
         : mScratchBufferPool(NULL), mMapBufferThreshold(OGRE_GL_DEFAULT_MAP_BUFFER_THRESHOLD)
     {
 
@@ -59,30 +58,29 @@ namespace Ogre {
         // Init scratch pool
         // TODO make it a configurable size?
         // 32-bit aligned buffer
-        mScratchBufferPool = static_cast<char*>(OGRE_MALLOC_ALIGN(SCRATCH_POOL_SIZE,
-                                                                  MEMCATEGORY_GEOMETRY,
-                                                                  SCRATCH_ALIGNMENT));
+        mScratchBufferPool = static_cast<char*>(OGRE_MALLOC_SIMD(SCRATCH_POOL_SIZE,
+                                                                  MEMCATEGORY_GEOMETRY));
         GL3PlusScratchBufferAlloc* ptrAlloc = (GL3PlusScratchBufferAlloc*)mScratchBufferPool;
         ptrAlloc->size = SCRATCH_POOL_SIZE - sizeof(GL3PlusScratchBufferAlloc);
         ptrAlloc->free = 1;
     }
 
-    GL3PlusHardwareBufferManagerBase::~GL3PlusHardwareBufferManagerBase()
+    GL3PlusHardwareBufferManager::~GL3PlusHardwareBufferManager()
     {
         mShaderStorageBuffers.clear();
 
         destroyAllDeclarations();
         destroyAllBindings();
 
-        OGRE_FREE_ALIGN(mScratchBufferPool, MEMCATEGORY_GEOMETRY, SCRATCH_ALIGNMENT);
+        OGRE_FREE_SIMD(mScratchBufferPool, MEMCATEGORY_GEOMETRY);
     }
 
-    GL3PlusStateCacheManager * GL3PlusHardwareBufferManagerBase::getStateCacheManager()
+    GL3PlusStateCacheManager * GL3PlusHardwareBufferManager::getStateCacheManager()
     {
         return mRenderSystem->_getStateCacheManager();
     }
 
-    void GL3PlusHardwareBufferManagerBase::notifyContextDestroyed(GLContext* context)
+    void GL3PlusHardwareBufferManager::notifyContextDestroyed(GLContext* context)
     {
         OGRE_LOCK_MUTEX(mVertexDeclarationsMutex);
         for(VertexDeclarationList::iterator it = mVertexDeclarations.begin(), it_end = mVertexDeclarations.end(); it != it_end; ++it)
@@ -90,7 +88,7 @@ namespace Ogre {
     }
 
     HardwareVertexBufferSharedPtr
-    GL3PlusHardwareBufferManagerBase::createVertexBuffer(size_t vertexSize,
+    GL3PlusHardwareBufferManager::createVertexBuffer(size_t vertexSize,
                                                          size_t numVerts,
                                                          HardwareBuffer::Usage usage,
                                                          bool useShadowBuffer)
@@ -104,7 +102,7 @@ namespace Ogre {
         return HardwareVertexBufferSharedPtr(buf);
     }
 
-    HardwareIndexBufferSharedPtr GL3PlusHardwareBufferManagerBase::createIndexBuffer(HardwareIndexBuffer::IndexType itype,
+    HardwareIndexBufferSharedPtr GL3PlusHardwareBufferManager::createIndexBuffer(HardwareIndexBuffer::IndexType itype,
                                                                                      size_t numIndexes,
                                                                                      HardwareBuffer::Usage usage,
                                                                                      bool useShadowBuffer)
@@ -118,7 +116,7 @@ namespace Ogre {
         return HardwareIndexBufferSharedPtr(buf);
     }
 
-    HardwareUniformBufferSharedPtr GL3PlusHardwareBufferManagerBase::createUniformBuffer(size_t sizeBytes, HardwareBuffer::Usage usage, bool useShadowBuffer, const String& name)
+    HardwareUniformBufferSharedPtr GL3PlusHardwareBufferManager::createUniformBuffer(size_t sizeBytes, HardwareBuffer::Usage usage, bool useShadowBuffer, const String& name)
     {
         GL3PlusHardwareUniformBuffer* buf =
             new GL3PlusHardwareUniformBuffer(this, sizeBytes, usage, useShadowBuffer, name);
@@ -129,7 +127,7 @@ namespace Ogre {
         return HardwareUniformBufferSharedPtr(buf);
     }
 
-    HardwareUniformBufferSharedPtr GL3PlusHardwareBufferManagerBase::createShaderStorageBuffer(size_t sizeBytes, HardwareBuffer::Usage usage, bool useShadowBuffer, const String& name)
+    HardwareUniformBufferSharedPtr GL3PlusHardwareBufferManager::createShaderStorageBuffer(size_t sizeBytes, HardwareBuffer::Usage usage, bool useShadowBuffer, const String& name)
     {
         GL3PlusHardwareShaderStorageBuffer* buf =
             new GL3PlusHardwareShaderStorageBuffer(this, sizeBytes, usage, useShadowBuffer, name);
@@ -140,7 +138,7 @@ namespace Ogre {
         return HardwareUniformBufferSharedPtr(buf);
     }
 
-    HardwareCounterBufferSharedPtr GL3PlusHardwareBufferManagerBase::createCounterBuffer(size_t sizeBytes, HardwareBuffer::Usage usage, bool useShadowBuffer, const String& name)
+    HardwareCounterBufferSharedPtr GL3PlusHardwareBufferManager::createCounterBuffer(size_t sizeBytes, HardwareBuffer::Usage usage, bool useShadowBuffer, const String& name)
     {
         GL3PlusHardwareCounterBuffer* buf =
             new GL3PlusHardwareCounterBuffer(this, name);
@@ -151,22 +149,22 @@ namespace Ogre {
         return HardwareCounterBufferSharedPtr(buf);
     }
 
-    RenderToVertexBufferSharedPtr GL3PlusHardwareBufferManagerBase::createRenderToVertexBuffer()
+    RenderToVertexBufferSharedPtr GL3PlusHardwareBufferManager::createRenderToVertexBuffer()
     {
         return RenderToVertexBufferSharedPtr(new GL3PlusRenderToVertexBuffer);
     }
 
-    VertexDeclaration* GL3PlusHardwareBufferManagerBase::createVertexDeclarationImpl(void)
+    VertexDeclaration* GL3PlusHardwareBufferManager::createVertexDeclarationImpl(void)
     {
         return OGRE_NEW GLVertexArrayObject();
     }
 
-    void GL3PlusHardwareBufferManagerBase::destroyVertexDeclarationImpl(VertexDeclaration* decl)
+    void GL3PlusHardwareBufferManager::destroyVertexDeclarationImpl(VertexDeclaration* decl)
     {
         OGRE_DELETE decl;
     }
 
-    GLenum GL3PlusHardwareBufferManagerBase::getGLType(VertexElementType type)
+    GLenum GL3PlusHardwareBufferManager::getGLType(VertexElementType type)
     {
         switch(type)
         {
@@ -219,7 +217,7 @@ namespace Ogre {
         return 0;
     }
 
-    void* GL3PlusHardwareBufferManagerBase::allocateScratch(uint32 size)
+    void* GL3PlusHardwareBufferManager::allocateScratch(uint32 size)
     {
         // simple forward link search based on alloc sizes
         // not that fast but the list should never get that long since not many
@@ -268,7 +266,7 @@ namespace Ogre {
         return 0;
     }
 
-    void GL3PlusHardwareBufferManagerBase::deallocateScratch(void* ptr)
+    void GL3PlusHardwareBufferManager::deallocateScratch(void* ptr)
     {
         OGRE_LOCK_MUTEX(mScratchMutex);
 
@@ -319,12 +317,12 @@ namespace Ogre {
         assert(false && "Memory deallocation error");
     }
 
-    size_t GL3PlusHardwareBufferManagerBase::getGLMapBufferThreshold() const
+    size_t GL3PlusHardwareBufferManager::getGLMapBufferThreshold() const
     {
         return mMapBufferThreshold;
     }
 
-    void GL3PlusHardwareBufferManagerBase::setGLMapBufferThreshold( const size_t value )
+    void GL3PlusHardwareBufferManager::setGLMapBufferThreshold( const size_t value )
     {
         mMapBufferThreshold = value;
     }

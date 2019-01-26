@@ -147,9 +147,9 @@ namespace Ogre {
         bool mAllDefaultRotation;
         bool mWorldSpace;
 
-        typedef list<Billboard*>::type ActiveBillboardList;
-        typedef list<Billboard*>::type FreeBillboardList;
-        typedef vector<Billboard*>::type BillboardPool;
+        typedef std::list<Billboard*> ActiveBillboardList;
+        typedef std::list<Billboard*> FreeBillboardList;
+        typedef std::vector<Billboard*> BillboardPool;
 
         /** Active billboard list.
         @remarks
@@ -177,7 +177,7 @@ namespace Ogre {
         BillboardPool mBillboardPool;
 
         /// The vertex position data for all billboards in this set.
-        VertexData* mVertexData;
+        std::unique_ptr<VertexData> mVertexData;
         /// Shortcut to main buffer (positions, colours, texture coords)
         HardwareVertexBufferSharedPtr mMainBuf;
         /// Locked pointer to buffer
@@ -200,12 +200,12 @@ namespace Ogre {
         Vector3 mCamPos;
 
         /// The vertex index data for all billboards in this set (1 set only)
-        IndexData* mIndexData;
+        std::unique_ptr<IndexData> mIndexData;
 
         /// Flag indicating whether each billboard should be culled separately (default: false)
         bool mCullIndividual;
 
-        typedef vector< Ogre::FloatRect >::type TextureCoordSets;
+        typedef std::vector< Ogre::FloatRect > TextureCoordSets;
         TextureCoordSets mTextureCoords;
 
         /// The type of billboard to render
@@ -524,8 +524,6 @@ namespace Ogre {
         virtual Real getDefaultHeight(void) const;
 
         /** Sets the name of the material to be used for this billboard set.
-        @param name
-            The new name of the material to use for this set.
         */
         virtual void setMaterialName( const String& name, const String& groupName = ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME );
 

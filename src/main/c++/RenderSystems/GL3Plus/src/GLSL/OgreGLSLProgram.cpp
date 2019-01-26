@@ -109,6 +109,19 @@ namespace Ogre {
         }
     }
 
+    uint32 GLSLProgram::getCombinedHash()
+    {
+        uint32 hash = 0;
+        GpuProgram* progs[] = {mVertexShader, mFragmentShader, mGeometryShader,
+                               mHullShader,   mDomainShader,   mComputeShader};
+        for (auto p : progs)
+        {
+            if(!p) continue;
+            hash = p->_getHash(hash);
+        }
+        return hash;
+    }
+
     void GLSLProgram::setTransformFeedbackVaryings(const std::vector<String>& nameStrings)
     {
         // Get program object ID.
@@ -123,7 +136,7 @@ namespace Ogre {
             programId = glslGpuProgram->getGLProgramHandle();
 
             // force re-link
-            GpuProgramManager::getSingleton().removeMicrocodeFromCache(glslGpuProgram->getName());
+            GpuProgramManager::getSingleton().removeMicrocodeFromCache(glslGpuProgram->_getHash());
             glslGpuProgram->setLinked(false);
         }
         else
@@ -131,7 +144,7 @@ namespace Ogre {
             programId = getGLProgramHandle();
 
             // force re-link
-            GpuProgramManager::getSingleton().removeMicrocodeFromCache(getCombinedName());
+            GpuProgramManager::getSingleton().removeMicrocodeFromCache(getCombinedHash());
         }
         mLinked = false;
 
@@ -166,10 +179,10 @@ namespace Ogre {
 #endif
     }
 
-    void GLSLProgram::getMicrocodeFromCache(void)
+    void GLSLProgram::getMicrocodeFromCache(uint32 id)
     {
         GpuProgramManager::Microcode cacheMicrocode =
-            GpuProgramManager::getSingleton().getMicrocodeFromCache(getCombinedName());
+            GpuProgramManager::getSingleton().getMicrocodeFromCache(id);
 
         cacheMicrocode->seek(0);
 
@@ -183,18 +196,23 @@ namespace Ogre {
         // Load binary.
         OGRE_CHECK_GL_ERROR(glProgramBinary(mGLProgramHandle,
                                             binaryFormat,
-                                            cacheMicrocode->getPtr(),
+                                            cacheMicrocode->getCurrentPtr(),
                                             binaryLength));
 
         GLint success = 0;
         OGRE_CHECK_GL_ERROR(glGetProgramiv(mGLProgramHandle, GL_LINK_STATUS, &success));
-        if (!success)
+
+        if(success)
         {
-            // Something must have changed since the program binaries
-            // were cached away. Fallback to source shader loading path,
-            // and then retrieve and cache new program binaries once again.
-            compileAndLink();
+            mLinked = true;
+            return;
         }
+
+        logObjectInfo("could not load from cache "+getCombinedName(), mGLProgramHandle);
+        // Something must have changed since the program binaries
+        // were cached away. Fallback to source shader loading path,
+        // and then retrieve and cache new program binaries once again.
+        compileAndLink();
     }
 
 } // namespace Ogre

@@ -39,15 +39,13 @@ THE SOFTWARE.
 
 // Added by Steve Streeting for Ogre
 #include "OgrePrerequisites.h"
+#include "OgreException.h"
 
 #if OGRE_COMPILER == OGRE_COMPILER_MSVC
 #   pragma warning (push)
 #   pragma warning ( disable: 4661)
 #endif
 
-#if defined ( OGRE_GCC_VISIBILITY )
-#   pragma GCC visibility push(default)
-#endif
 namespace Ogre {
     /** \addtogroup Core
     *  @{
@@ -75,13 +73,8 @@ namespace Ogre {
     public:
         Singleton( void )
         {
-            assert( !msSingleton );
-#if defined( _MSC_VER ) && _MSC_VER < 1200   
-            int offset = (int)(T*)1 - (int)(Singleton <T>*)(T*)1;
-            msSingleton = (T*)((int)this + offset);
-#else
-        msSingleton = static_cast< T* >( this );
-#endif
+            OgreAssert( !msSingleton, "There can be only one singleton" );
+            msSingleton = static_cast< T* >( this );
         }
         ~Singleton( void )
             {  assert( msSingleton );  msSingleton = 0;  }
@@ -98,9 +91,6 @@ namespace Ogre {
 }
 #if OGRE_COMPILER == OGRE_COMPILER_MSVC
 #   pragma warning (pop)
-#endif
-#if defined ( OGRE_GCC_VISIBILITY )
-#   pragma GCC visibility pop
 #endif
 
 #endif

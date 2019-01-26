@@ -26,7 +26,7 @@
  -----------------------------------------------------------------------------
  */
 
-#include <OgreZip.h>
+#include "OgreZip.h"
 
 #include "SamplePlugin.h"
 #include "CharacterSample.h"
@@ -35,7 +35,7 @@
 #include "Context.h"
 
 Context::Context()
-    :   OgreBites::SampleContext("OGRE Emscripten Sample", false), mBuffer(NULL), mNode(NULL)
+    :   OgreBites::SampleContext("OGRE Emscripten Sample"), mBuffer(NULL), mNode(NULL)
 {
 }
 
@@ -56,10 +56,7 @@ void Context::_mainLoop(void* target)
 	else
     {
 	    try
-	    {
-            //Pump messages in all registered RenderWindow windows
-            Ogre::WindowEventUtilities::messagePump();
-            
+	    {            
             if (!thizz->mRoot->renderOneFrame())
             {
                 emscripten_cancel_main_loop();
@@ -163,11 +160,8 @@ void Context::clearScene()
 {
     if (mBuffer != NULL)
     {
-        auto it = mNode->getAttachedObjectIterator();
-        while (it.hasMoreElements())
-        {
-            //mSceneMgr->destroyMovableObject(it.getNext());
-        }
+        //for (auto mo : mNode->getAttachedObjects())
+        //    mSceneMgr->destroyMovableObject(mo);
         mNode->detachAllObjects();
 
         Ogre::MaterialManager* matMgr = Ogre::MaterialManager::getSingletonPtr();

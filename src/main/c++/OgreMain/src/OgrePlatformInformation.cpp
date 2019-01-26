@@ -27,14 +27,10 @@ THE SOFTWARE.
 */
 #include "OgreStableHeaders.h"
 
-#include "OgrePlatformInformation.h"
-
 #if OGRE_COMPILER == OGRE_COMPILER_MSVC
 #include <excpt.h>      // For SEH values
-    #if _MSC_VER >= 1400
-        #include <intrin.h>
-    #endif
-#elif (OGRE_COMPILER == OGRE_COMPILER_GNUC || OGRE_COMPILER == OGRE_COMPILER_CLANG) && OGRE_PLATFORM != OGRE_PLATFORM_NACL
+#include <intrin.h>
+#elif OGRE_COMPILER == OGRE_COMPILER_GNUC || OGRE_COMPILER == OGRE_COMPILER_CLANG
 #include <signal.h>
 #include <setjmp.h>
 
@@ -121,7 +117,7 @@ namespace Ogre {
             // Return values in eax, no return statement requirement here for VC.
         }
     #endif
-#elif (OGRE_COMPILER == OGRE_COMPILER_GNUC || OGRE_COMPILER == OGRE_COMPILER_CLANG) && OGRE_PLATFORM != OGRE_PLATFORM_NACL && OGRE_PLATFORM != OGRE_PLATFORM_EMSCRIPTEN
+#elif (OGRE_COMPILER == OGRE_COMPILER_GNUC || OGRE_COMPILER == OGRE_COMPILER_CLANG) && OGRE_PLATFORM != OGRE_PLATFORM_EMSCRIPTEN
         #if OGRE_ARCH_TYPE == OGRE_ARCHITECTURE_64
            return true;
        #else
@@ -154,7 +150,6 @@ namespace Ogre {
     static uint _performCpuid(int query, CpuidResult& result)
     {
 #if OGRE_COMPILER == OGRE_COMPILER_MSVC
-    #if _MSC_VER >= 1400 
         int CPUInfo[4];
         __cpuid(CPUInfo, query);
         result._eax = CPUInfo[0];
@@ -162,20 +157,7 @@ namespace Ogre {
         result._ecx = CPUInfo[2];
         result._edx = CPUInfo[3];
         return result._eax;
-    #else
-        __asm
-        {
-            mov     edi, result
-            mov     eax, query
-            cpuid
-            mov     [edi]._eax, eax
-            mov     [edi]._ebx, ebx
-            mov     [edi]._edx, edx
-            mov     [edi]._ecx, ecx
-            // Return values in eax, no return statement requirement here for VC.
-        }
-    #endif
-#elif (OGRE_COMPILER == OGRE_COMPILER_GNUC || OGRE_COMPILER == OGRE_COMPILER_CLANG) && OGRE_PLATFORM != OGRE_PLATFORM_NACL && OGRE_PLATFORM != OGRE_PLATFORM_EMSCRIPTEN
+#elif (OGRE_COMPILER == OGRE_COMPILER_GNUC || OGRE_COMPILER == OGRE_COMPILER_CLANG) && OGRE_PLATFORM != OGRE_PLATFORM_EMSCRIPTEN
         #if OGRE_ARCH_TYPE == OGRE_ARCHITECTURE_64
         __asm__
         (
@@ -206,7 +188,7 @@ namespace Ogre {
 
     //---------------------------------------------------------------------
     // Detect whether or not os support Streaming SIMD Extension.
-#if (OGRE_COMPILER == OGRE_COMPILER_GNUC || OGRE_COMPILER == OGRE_COMPILER_CLANG) && OGRE_PLATFORM != OGRE_PLATFORM_NACL
+#if OGRE_COMPILER == OGRE_COMPILER_GNUC || OGRE_COMPILER == OGRE_COMPILER_CLANG
     #if OGRE_ARCH_TYPE == OGRE_ARCHITECTURE_32 && OGRE_CPU == OGRE_CPU_X86
     static jmp_buf sIllegalJmpBuf;
     static void _illegalHandler(int x)
@@ -249,7 +231,7 @@ namespace Ogre {
             return false;
         }
     #endif
-#elif (OGRE_COMPILER == OGRE_COMPILER_GNUC || OGRE_COMPILER == OGRE_COMPILER_CLANG) && OGRE_PLATFORM != OGRE_PLATFORM_NACL && OGRE_PLATFORM != OGRE_PLATFORM_EMSCRIPTEN
+#elif (OGRE_COMPILER == OGRE_COMPILER_GNUC || OGRE_COMPILER == OGRE_COMPILER_CLANG) && OGRE_PLATFORM != OGRE_PLATFORM_EMSCRIPTEN
         #if OGRE_ARCH_TYPE == OGRE_ARCHITECTURE_64 
             return true;
         #else

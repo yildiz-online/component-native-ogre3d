@@ -38,11 +38,6 @@
 #   include "OgreRTShaderSystem.h"
 #endif //INCLUDE_RTSHADER_SYSTEM
 
-#if OGRE_PLATFORM == OGRE_PLATFORM_NACL && !defined(INCLUDE_RTSHADER_SYSTEM)
-#   define INCLUDE_RTSHADER_SYSTEM
-#include "OgreShaderGenerator.h"
-#endif
-
 #include "OgreInput.h"
 
 namespace OgreBites
@@ -59,10 +54,10 @@ namespace OgreBites
         =============================================================================*/
         struct Comparer
         {
-            bool operator() (Sample* a, Sample* b)
+            bool operator() (const Sample* a, const Sample* b) const
             {
-                Ogre::NameValuePairList::iterator aTitle = a->getInfo().find("Title");
-                Ogre::NameValuePairList::iterator bTitle = b->getInfo().find("Title");
+                auto aTitle = a->getInfo().find("Title");
+                auto bTitle = b->getInfo().find("Title");
                 
                 if (aTitle != a->getInfo().end() && bTitle != b->getInfo().end())
                     return aTitle->second.compare(bTitle->second) < 0;
@@ -92,10 +87,8 @@ namespace OgreBites
         /*-----------------------------------------------------------------------------
         | Retrieves custom sample info.
         -----------------------------------------------------------------------------*/
-        Ogre::NameValuePairList& getInfo()
-        {
-            return mInfo;
-        }
+        const Ogre::NameValuePairList& getInfo() const { return mInfo; }
+        Ogre::NameValuePairList& getInfo() { return mInfo; }
 
         /*-----------------------------------------------------------------------------
         | Tests to see if target machine meets any special requirements of
@@ -161,6 +154,8 @@ namespace OgreBites
         virtual void _shutdown()
 
         {
+            Ogre::ControllerManager::getSingleton().clearControllers();
+
             if (mContentSetup)
                 cleanupContent();
             if (mSceneMgr)

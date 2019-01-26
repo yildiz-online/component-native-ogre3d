@@ -28,8 +28,6 @@ THE SOFTWARE.
 */
 #include "OgreStableHeaders.h"
 #include "OgrePolygon.h"
-#include "OgreException.h"
-#include "OgreVector3.h"
 
 namespace Ogre
 {
@@ -245,7 +243,7 @@ namespace Ogre
             else
             {
                 Real costheta = v1.dotProduct(v2) / (len1 * len2);
-                anglesum += acos(costheta);
+                anglesum += std::acos(costheta);
             }
         }
 

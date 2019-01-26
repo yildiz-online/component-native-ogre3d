@@ -29,25 +29,11 @@ THE SOFTWARE.
 
 #include "OgreAutoParamDataSource.h"
 #include "OgreRenderable.h"
-#include "OgreCamera.h"
 #include "OgreRenderTarget.h"
 #include "OgreControllerManager.h"
-#include "OgreMath.h"
-#include "OgreRoot.h"
-#include "OgreRenderSystem.h"
-#include "OgreMatrix4.h"
-#include "OgreVector4.h"
-#include "OgreColourValue.h"
-#include "OgreSceneNode.h"
 #include "OgreViewport.h"
 
 namespace Ogre {
-    const Matrix4 PROJECTIONCLIPSPACE2DTOIMAGESPACE_PERSPECTIVE(
-        0.5,    0,    0,  0.5, 
-        0,   -0.5,    0,  0.5, 
-        0,      0,    1,    0,
-        0,      0,    0,    1);
-
     //-----------------------------------------------------------------------------
     AutoParamDataSource::AutoParamDataSource()
         : mWorldMatrixCount(0),
@@ -65,6 +51,7 @@ namespace Ogre {
          mInverseTransposeWorldViewMatrixDirty(true),
          mCameraPositionDirty(true),
          mCameraPositionObjectSpaceDirty(true),
+         mAmbientLight(ColourValue::Black),
          mPassNumber(0),
          mSceneDepthRangeDirty(true),
          mLodCameraPositionDirty(true),
@@ -270,19 +257,19 @@ namespace Ogre {
         mCurrentSceneManager = sm;
     }
     //-----------------------------------------------------------------------------
-    void AutoParamDataSource::setWorldMatrices(const Matrix4* m, size_t count)
+    void AutoParamDataSource::setWorldMatrices(const Affine3* m, size_t count)
     {
         mWorldMatrixArray = m;
         mWorldMatrixCount = count;
         mWorldMatrixDirty = false;
     }
     //-----------------------------------------------------------------------------
-    const Matrix4& AutoParamDataSource::getWorldMatrix(void) const
+    const Affine3& AutoParamDataSource::getWorldMatrix(void) const
     {
         if (mWorldMatrixDirty)
         {
             mWorldMatrixArray = mWorldMatrix;
-            mCurrentRenderable->getWorldTransforms(mWorldMatrix);
+            mCurrentRenderable->getWorldTransforms(reinterpret_cast<Matrix4*>(mWorldMatrix));
             mWorldMatrixCount = mCurrentRenderable->getNumWorldTransforms();
             if (mCameraRelativeRendering)
             {
@@ -303,19 +290,19 @@ namespace Ogre {
         return mWorldMatrixCount;
     }
     //-----------------------------------------------------------------------------
-    const Matrix4* AutoParamDataSource::getWorldMatrixArray(void) const
+    const Affine3* AutoParamDataSource::getWorldMatrixArray(void) const
     {
         // trigger derivation
         getWorldMatrix();
         return mWorldMatrixArray;
     }
     //-----------------------------------------------------------------------------
-    const Matrix4& AutoParamDataSource::getViewMatrix(void) const
+    const Affine3& AutoParamDataSource::getViewMatrix(void) const
     {
         if (mViewMatrixDirty)
         {
             if (mCurrentRenderable && mCurrentRenderable->getUseIdentityView())
-                mViewMatrix = Matrix4::IDENTITY;
+                mViewMatrix = Affine3::IDENTITY;
             else
             {
                 mViewMatrix = mCurrentCamera->getViewMatrix(true);
@@ -370,11 +357,11 @@ namespace Ogre {
         return mProjectionMatrix;
     }
     //-----------------------------------------------------------------------------
-    const Matrix4& AutoParamDataSource::getWorldViewMatrix(void) const
+    const Affine3& AutoParamDataSource::getWorldViewMatrix(void) const
     {
         if (mWorldViewMatrixDirty)
         {
-            mWorldViewMatrix = getViewMatrix().concatenateAffine(getWorldMatrix());
+            mWorldViewMatrix = getViewMatrix() * getWorldMatrix();
             mWorldViewMatrixDirty = false;
         }
         return mWorldViewMatrix;
@@ -390,31 +377,31 @@ namespace Ogre {
         return mWorldViewProjMatrix;
     }
     //-----------------------------------------------------------------------------
-    const Matrix4& AutoParamDataSource::getInverseWorldMatrix(void) const
+    const Affine3& AutoParamDataSource::getInverseWorldMatrix(void) const
     {
         if (mInverseWorldMatrixDirty)
         {
-            mInverseWorldMatrix = getWorldMatrix().inverseAffine();
+            mInverseWorldMatrix = getWorldMatrix().inverse();
             mInverseWorldMatrixDirty = false;
         }
         return mInverseWorldMatrix;
     }
     //-----------------------------------------------------------------------------
-    const Matrix4& AutoParamDataSource::getInverseWorldViewMatrix(void) const
+    const Affine3& AutoParamDataSource::getInverseWorldViewMatrix(void) const
     {
         if (mInverseWorldViewMatrixDirty)
         {
-            mInverseWorldViewMatrix = getWorldViewMatrix().inverseAffine();
+            mInverseWorldViewMatrix = getWorldViewMatrix().inverse();
             mInverseWorldViewMatrixDirty = false;
         }
         return mInverseWorldViewMatrix;
     }
     //-----------------------------------------------------------------------------
-    const Matrix4& AutoParamDataSource::getInverseViewMatrix(void) const
+    const Affine3& AutoParamDataSource::getInverseViewMatrix(void) const
     {
         if (mInverseViewMatrixDirty)
         {
-            mInverseViewMatrix = getViewMatrix().inverseAffine();
+            mInverseViewMatrix = getViewMatrix().inverse();
             mInverseViewMatrixDirty = false;
         }
         return mInverseViewMatrix;
@@ -464,13 +451,12 @@ namespace Ogre {
         {
             if (mCameraRelativeRendering)
             {
-                mCameraPositionObjectSpace = 
-                    getInverseWorldMatrix().transformAffine(Vector3::ZERO);
+                mCameraPositionObjectSpace = Vector4(getInverseWorldMatrix() * Vector3::ZERO);
             }
             else
             {
-                mCameraPositionObjectSpace = 
-                    getInverseWorldMatrix().transformAffine(mCurrentCamera->getDerivedPosition());
+                mCameraPositionObjectSpace =
+                    Vector4(getInverseWorldMatrix() * mCurrentCamera->getDerivedPosition());
             }
             mCameraPositionObjectSpaceDirty = false;
         }
@@ -501,14 +487,16 @@ namespace Ogre {
         {
             if (mCameraRelativeRendering)
             {
-                mLodCameraPositionObjectSpace = 
-                    getInverseWorldMatrix().transformAffine(mCurrentCamera->getLodCamera()->getDerivedPosition()
-                        - mCameraRelativePosition);
+                mLodCameraPositionObjectSpace =
+                    Vector4(getInverseWorldMatrix() *
+                            (mCurrentCamera->getLodCamera()->getDerivedPosition() -
+                             mCameraRelativePosition));
             }
             else
             {
-                mLodCameraPositionObjectSpace = 
-                    getInverseWorldMatrix().transformAffine(mCurrentCamera->getLodCamera()->getDerivedPosition());
+                mLodCameraPositionObjectSpace =
+                    Vector4(getInverseWorldMatrix() *
+                            (mCurrentCamera->getLodCamera()->getDerivedPosition()));
             }
             mLodCameraPositionObjectSpaceDirty = false;
         }
@@ -682,14 +670,14 @@ namespace Ogre {
                     mCurrentTextureProjector[index]->calcViewMatrixRelative(
                         mCurrentCamera->getDerivedPosition(), viewMatrix);
                     mTextureViewProjMatrix[index] = 
-                        PROJECTIONCLIPSPACE2DTOIMAGESPACE_PERSPECTIVE * 
+                        Matrix4::CLIPSPACE2DTOIMAGESPACE *
                         mCurrentTextureProjector[index]->getProjectionMatrixWithRSDepth() * 
                         viewMatrix;
                 }
                 else
                 {
                     mTextureViewProjMatrix[index] = 
-                        PROJECTIONCLIPSPACE2DTOIMAGESPACE_PERSPECTIVE * 
+                        Matrix4::CLIPSPACE2DTOIMAGESPACE *
                         mCurrentTextureProjector[index]->getProjectionMatrixWithRSDepth() * 
                         mCurrentTextureProjector[index]->getViewMatrix();
                 }
@@ -762,7 +750,7 @@ namespace Ogre {
                 // The view matrix here already includes camera-relative changes if necessary
                 // since they are built into the frustum position
                 mSpotlightViewProjMatrix[index] = 
-                    PROJECTIONCLIPSPACE2DTOIMAGESPACE_PERSPECTIVE * 
+                    Matrix4::CLIPSPACE2DTOIMAGESPACE *
                     frust.getProjectionMatrixWithRSDepth() * 
                     frust.getViewMatrix();
 
@@ -831,21 +819,16 @@ namespace Ogre {
         mDirLightExtrusionDistance = dist;
     }
     //-----------------------------------------------------------------------------
+    void AutoParamDataSource::setShadowPointLightExtrusionDistance(Real dist)
+    {
+        mPointLightExtrusionDistance = dist;
+    }
+    //-----------------------------------------------------------------------------
     Real AutoParamDataSource::getShadowExtrusionDistance(void) const
     {
         const Light& l = getLight(0); // only ever applies to one light at once
-        if (l.getType() == Light::LT_DIRECTIONAL)
-        {
-            // use constant
-            return mDirLightExtrusionDistance;
-        }
-        else
-        {
-            // Calculate based on object space light distance
-            // compared to light attenuation range
-            Vector3 objPos = getInverseWorldMatrix().transformAffine(l.getDerivedPosition(true));
-            return l.getAttenuationRange() - objPos.length();
-        }
+        return (l.getType() == Light::LT_DIRECTIONAL) ?
+            mDirLightExtrusionDistance : mPointLightExtrusionDistance;
     }
     //-----------------------------------------------------------------------------
     const Renderable* AutoParamDataSource::getCurrentRenderable(void) const
@@ -925,28 +908,28 @@ namespace Ogre {
     //-----------------------------------------------------------------------------
     Real AutoParamDataSource::getTime_0_X(Real x) const
     {
-        return fmod(this->getTime(), x);
+        return std::fmod(this->getTime(), x);
     }
     //-----------------------------------------------------------------------------
     Real AutoParamDataSource::getCosTime_0_X(Real x) const
     { 
-        return cos(this->getTime_0_X(x)); 
+        return std::cos(this->getTime_0_X(x));
     }
     //-----------------------------------------------------------------------------
     Real AutoParamDataSource::getSinTime_0_X(Real x) const
     { 
-        return sin(this->getTime_0_X(x)); 
+        return std::sin(this->getTime_0_X(x));
     }
     //-----------------------------------------------------------------------------
     Real AutoParamDataSource::getTanTime_0_X(Real x) const
     { 
-        return tan(this->getTime_0_X(x)); 
+        return std::tan(this->getTime_0_X(x));
     }
     //-----------------------------------------------------------------------------
     Vector4 AutoParamDataSource::getTime_0_X_packed(Real x) const
     {
         Real t = this->getTime_0_X(x);
-        return Vector4(t, sin(t), cos(t), tan(t));
+        return Vector4(t, std::sin(t), std::cos(t), std::tan(t));
     }
     //-----------------------------------------------------------------------------
     Real AutoParamDataSource::getTime_0_1(Real x) const
@@ -956,23 +939,23 @@ namespace Ogre {
     //-----------------------------------------------------------------------------
     Real AutoParamDataSource::getCosTime_0_1(Real x) const
     { 
-        return cos(this->getTime_0_1(x)); 
+        return std::cos(this->getTime_0_1(x));
     }
     //-----------------------------------------------------------------------------
     Real AutoParamDataSource::getSinTime_0_1(Real x) const
     { 
-        return sin(this->getTime_0_1(x)); 
+        return std::sin(this->getTime_0_1(x));
     }
     //-----------------------------------------------------------------------------
     Real AutoParamDataSource::getTanTime_0_1(Real x) const
     { 
-        return tan(this->getTime_0_1(x)); 
+        return std::tan(this->getTime_0_1(x));
     }
     //-----------------------------------------------------------------------------
     Vector4 AutoParamDataSource::getTime_0_1_packed(Real x) const
     {
         Real t = this->getTime_0_1(x);
-        return Vector4(t, sin(t), cos(t), tan(t));
+        return Vector4(t, std::sin(t), std::cos(t), std::tan(t));
     }
     //-----------------------------------------------------------------------------
     Real AutoParamDataSource::getTime_0_2Pi(Real x) const
@@ -982,23 +965,23 @@ namespace Ogre {
     //-----------------------------------------------------------------------------
     Real AutoParamDataSource::getCosTime_0_2Pi(Real x) const
     { 
-        return cos(this->getTime_0_2Pi(x)); 
+        return std::cos(this->getTime_0_2Pi(x));
     }
     //-----------------------------------------------------------------------------
     Real AutoParamDataSource::getSinTime_0_2Pi(Real x) const
     { 
-        return sin(this->getTime_0_2Pi(x)); 
+        return std::sin(this->getTime_0_2Pi(x));
     }
     //-----------------------------------------------------------------------------
     Real AutoParamDataSource::getTanTime_0_2Pi(Real x) const
     { 
-        return tan(this->getTime_0_2Pi(x)); 
+        return std::tan(this->getTime_0_2Pi(x));
     }
     //-----------------------------------------------------------------------------
     Vector4 AutoParamDataSource::getTime_0_2Pi_packed(Real x) const
     {
         Real t = this->getTime_0_2Pi(x);
-        return Vector4(t, sin(t), cos(t), tan(t));
+        return Vector4(t, std::sin(t), std::cos(t), std::tan(t));
     }
     //-----------------------------------------------------------------------------
     Real AutoParamDataSource::getFrameTime(void) const

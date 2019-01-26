@@ -25,12 +25,7 @@ THE SOFTWARE.
 -----------------------------------------------------------------------------
 */
 
-#include "OgreShaderProgramProcessor.h"
-#include "OgreShaderFunctionAtom.h"
-#include "OgreShaderFunction.h"
-#include "OgreShaderFFPRenderState.h"
-#include "OgreShaderGenerator.h"
-#include "OgreShaderProgram.h"
+#include "OgreShaderPrecompiledHeaders.h"
 
 namespace Ogre {
 namespace RTShader {
@@ -627,7 +622,7 @@ void ProgramProcessor::generateLocalSplitParameters(Function* func, GpuProgramTy
     for (unsigned int i=0; i < splitParams.size(); ++i)
     {
         ParameterPtr srcParameter   = splitParams[i];
-        ParameterPtr localParameter = func->resolveLocalParameter(srcParameter->getSemantic(), srcParameter->getIndex(), "lsplit_" + srcParameter->getName(), srcParameter->getType());
+        ParameterPtr localParameter = func->resolveLocalParameter("lsplit_" + srcParameter->getName(), srcParameter->getType());
 
         localParamsMap[srcParameter.get()] = localParameter;        
     }   

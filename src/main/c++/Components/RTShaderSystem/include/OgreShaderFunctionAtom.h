@@ -137,6 +137,19 @@ public:
     /** Returns the mask bitfield. */
     int getMask()   const { return mMask; }
 
+    Operand& x() { return mask(OPM_X); }
+    Operand& y() { return mask(OPM_Y); }
+    Operand& z() { return mask(OPM_Z); }
+    Operand& w() { return mask(OPM_W); }
+    Operand& xy() { return mask(OPM_XY); }
+    Operand& xyz() { return mask(OPM_XYZ); }
+
+    Operand& mask(int opMask)
+    {
+        mMask = opMask;
+        return *this;
+    }
+
     /// automatically set swizzle to match parameter arity
     void setMaskToParamType();
 
@@ -173,26 +186,53 @@ protected:
     ushort mIndirectionLevel;
 };
 
+struct _OgreRTSSExport In : Operand 
+{
+    In(const Operand& rhs) : Operand(rhs) { OgreAssert(mSemantic == OPS_IN, "invalid semantic"); }
+    In(ParameterPtr p) : Operand(p, OPS_IN) {}
+    In(UniformParameterPtr p) : Operand(p, OPS_IN) {}
+
+    // implicitly construct const params
+    In(float f) : Operand(ParameterFactory::createConstParam(f), OPS_IN) {}
+    In(const Vector2& v) : Operand(ParameterFactory::createConstParam(v), OPS_IN) {}
+    In(const Vector3& v) : Operand(ParameterFactory::createConstParam(v), OPS_IN) {}
+    In(const Vector4& v) : Operand(ParameterFactory::createConstParam(v), OPS_IN) {}
+};
+
+struct _OgreRTSSExport Out : Operand 
+{
+    Out(const Operand& rhs) : Operand(rhs) { OgreAssert(mSemantic == OPS_OUT, "invalid semantic"); }
+    Out(ParameterPtr p) : Operand(p, OPS_OUT) {}
+    Out(UniformParameterPtr p) : Operand(p, OPS_OUT) {}
+};
+
+struct _OgreRTSSExport InOut : Operand 
+{
+    InOut(const Operand& rhs) : Operand(rhs) { OgreAssert(mSemantic == OPS_INOUT, "invalid semantic"); }
+    InOut(ParameterPtr p) : Operand(p, OPS_INOUT) {}
+    InOut(UniformParameterPtr p) : Operand(p, OPS_INOUT) {}
+};
+
+/// shorthand for operator[]  on preceding operand. e.g. myArray[p]
+struct _OgreRTSSExport At : Operand
+{
+    At(ParameterPtr p) : Operand(p, OPS_IN, OPM_ALL, 1) {}
+};
+
 /** A class that represents function invocation code from shader based program function.
 */
 class _OgreRTSSExport FunctionInvocation : public FunctionAtom
 {
     // Interface.
 public: 
-    typedef vector<Operand>::type OperandVector;
+    typedef std::vector<Operand> OperandVector;
 
     /** Class constructor 
     @param functionName The name of the function to invoke.
     @param groupOrder The group order of this invocation.
-    @param internalOrder The internal order of this invocation.
     @param returnType The return type of the used function.
     */
     FunctionInvocation(const String& functionName, int groupOrder, const String& returnType = "void");
-
-    /// @overload
-    /// @deprecated internalOrder parameter is obsolete
-    OGRE_DEPRECATED FunctionInvocation(const String& functionName, int groupOrder, int internalOrder, String returnType = "void");
-
 
     /** Copy constructor */
     FunctionInvocation(const FunctionInvocation& rhs);
@@ -217,6 +257,8 @@ public:
     @param indirectionLevel The level of nesting inside brackets
     */
     void pushOperand(ParameterPtr parameter, Operand::OpSemantic opSemantic, int opMask = Operand::OPM_ALL, int indirectionLevel = 0);
+
+    void setOperands(const OperandVector& ops);
 
     /** Return the function name */
     const String& getFunctionName() const { return mFunctionName; }
@@ -269,14 +311,27 @@ class _OgreRTSSExport AssignmentAtom : public FunctionInvocation
 {
 public:
     explicit AssignmentAtom(int groupOrder) { mGroupExecutionOrder = groupOrder; }
-    AssignmentAtom(ParameterPtr lhs, ParameterPtr rhs, int groupOrder);
+    /// @note the argument order is reversed comered to all other function invocations
+    AssignmentAtom(const Out& lhs, const In& rhs, int groupOrder);
     void writeSourceCode(std::ostream& os, const String& targetLanguage) const;
     const String& getFunctionAtomType() { return Type; }
 
     static String Type;
 };
 
-typedef vector<FunctionAtom*>::type                 FunctionAtomInstanceList;
+/// shorthand for "dst = texture(sampler, uv);" instead of using FFP_SampleTexture
+class _OgreRTSSExport SampleTextureAtom : public FunctionInvocation
+{
+public:
+    explicit SampleTextureAtom(int groupOrder) { mGroupExecutionOrder = groupOrder; }
+    SampleTextureAtom(const In& sampler, const In& texcoord, const Out& dst, int groupOrder);
+    void writeSourceCode(std::ostream& os, const String& targetLanguage) const;
+    const String& getFunctionAtomType() { return Type; }
+
+    static String Type;
+};
+
+typedef std::vector<FunctionAtom*>                 FunctionAtomInstanceList;
 typedef FunctionAtomInstanceList::iterator          FunctionAtomInstanceIterator;
 typedef FunctionAtomInstanceList::const_iterator    FunctionAtomInstanceConstIterator;
 

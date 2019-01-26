@@ -28,7 +28,6 @@ THE SOFTWARE.
 #include "OgreStableHeaders.h"
 #include "OgreEdgeListBuilder.h"
 #include "OgreVertexIndexData.h"
-#include "OgreException.h"
 #include "OgreOptimisedUtil.h"
 
 namespace Ogre {
@@ -236,14 +235,6 @@ namespace Ogre {
         // Get the indexes ready for reading
         bool idx32bit = (indexData->indexBuffer->getType() == HardwareIndexBuffer::IT_32BIT);
         size_t indexSize = idx32bit ? sizeof(uint32) : sizeof(uint16);
-#if defined(_MSC_VER) && _MSC_VER <= 1300
-        // NB: Can't use un-named union with VS.NET 2002 when /RTC1 compile flag enabled.
-        void* pIndex = indexData->indexBuffer->lock(HardwareBuffer::HBL_READ_ONLY);
-        pIndex = static_cast<void*>(
-            static_cast<char*>(pIndex) + indexData->indexStart * indexSize);
-        unsigned short* p16Idx = static_cast<unsigned short*>(pIndex);
-        unsigned int* p32Idx = static_cast<unsigned int*>(pIndex);
-#else
         union {
             void* pIndex;
             unsigned short* p16Idx;
@@ -252,7 +243,6 @@ namespace Ogre {
         pIndex = indexData->indexBuffer->lock(HardwareBuffer::HBL_READ_ONLY);
         pIndex = static_cast<void*>(
             static_cast<char*>(pIndex) + indexData->indexStart * indexSize);
-#endif
 
         // Iterate over all the groups of 3 indexes
         unsigned int index[3];
@@ -525,7 +515,9 @@ namespace Ogre {
             unsigned short* p16Idx = 0;
             unsigned int* p32Idx = 0;
 
-            if (iData->indexBuffer->getType() == HardwareIndexBuffer::IT_32BIT)
+            bool isIT32 = iData->indexBuffer->getType() == HardwareIndexBuffer::IT_32BIT;
+
+            if (isIT32)
             {
                 p32Idx = static_cast<unsigned int*>(
                     iData->indexBuffer->lock(HardwareBuffer::HBL_READ_ONLY));
@@ -538,7 +530,7 @@ namespace Ogre {
 
             for (j = 0; j < iData->indexCount;  )
             {
-                if (iData->indexBuffer->getType() == HardwareIndexBuffer::IT_32BIT)
+                if (isIT32)
                 {
                     if (mGeometryList[i].opType == RenderOperation::OT_TRIANGLE_LIST
                         || j == 0)

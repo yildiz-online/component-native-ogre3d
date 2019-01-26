@@ -133,7 +133,7 @@ namespace Ogre {
             the length being the value returned from getNumWorldTransforms.
         @note
             Internal Ogre never supports non-affine matrix for world transform matrix/matrices,
-            the behavior is undefined if returns non-affine matrix here. @see Matrix4::isAffine.
+            the behavior is undefined if returns non-affine matrix here.
         */
         virtual void getWorldTransforms(Matrix4* xform) const = 0;
 
@@ -406,7 +406,7 @@ namespace Ogre {
 
 
     protected:
-        typedef map<size_t, Vector4>::type CustomParameterMap;
+        typedef std::map<size_t, Vector4> CustomParameterMap;
         CustomParameterMap mCustomParameters;
         bool mPolygonModeOverrideable;
         bool mUseIdentityProjection;

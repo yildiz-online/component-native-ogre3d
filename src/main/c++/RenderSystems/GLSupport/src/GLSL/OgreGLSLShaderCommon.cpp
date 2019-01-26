@@ -47,6 +47,13 @@ namespace Ogre {
     GLSLShaderCommon::CmdOutputOperationType GLSLShaderCommon::msOutputOperationTypeCmd;
     GLSLShaderCommon::CmdMaxOutputVertices GLSLShaderCommon::msMaxOutputVerticesCmd;
 
+    String GLSLShaderCommon::getResourceLogName() const
+    {
+        if(mLoadFromFile)
+            return "'" + mFilename + "'";
+        return "'"+mName+"'";
+    }
+
     //-----------------------------------------------------------------------
     void GLSLShaderCommon::loadFromSource(void)
     {
@@ -119,13 +126,13 @@ namespace Ogre {
         char *out = cpp.Parse (src, src_len, out_size);
         if (!out || !out_size)
             // Failed to preprocess, break out
-            OGRE_EXCEPT (Exception::ERR_RENDERINGAPI_ERROR,
-            "Failed to preprocess shader " + mName,
-            __FUNCTION__);
+            OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, "Failed to preprocess shader " + mName);
 
         mSource = String (out, out_size);
         if (out < src || out > src + src_len)
             free (out);
+
+        compile(true);
     }
     //---------------------------------------------------------------------------
     void GLSLShaderCommon::unloadImpl()
@@ -150,7 +157,6 @@ namespace Ogre {
         const String& name, ResourceHandle handle,
         const String& group, bool isManual, ManualResourceLoader* loader)
         : HighLevelGpuProgram(creator, name, handle, group, isManual, loader)
-        , mCompiled(0)
         , mInputOperationType(RenderOperation::OT_TRIANGLE_LIST)
         , mOutputOperationType(RenderOperation::OT_TRIANGLE_LIST)
         , mMaxOutputVertices(3)
@@ -197,13 +203,13 @@ namespace Ogre {
         {
             // make sure attached program source gets loaded and compiled
             // don't need a low level implementation for attached shader objects
-            // loadHighLevelImpl will only load the source and compile once
+            // loadHighLevel will only load the source and compile once
             // so don't worry about calling it several times
             GLSLShaderCommon* childShader = static_cast<GLSLShaderCommon*>(hlProgram.get());
             // load the source and attach the child shader only if supported
             if (isSupported())
             {
-                childShader->loadHighLevelImpl();
+                childShader->loadHighLevel();
                 // add to the container
                 mAttachedGLSLPrograms.push_back( childShader );
                 mAttachedShaderNames += name + " ";
@@ -221,17 +227,33 @@ namespace Ogre {
         {
             return RenderOperation::OT_LINE_LIST;
         }
+        else if (val == "line_list_adj")
+        {
+            return RenderOperation::OT_LINE_LIST_ADJ;
+        }
         else if (val == "line_strip")
         {
             return RenderOperation::OT_LINE_STRIP;
+        }
+        else if (val == "line_strip_adj")
+        {
+            return RenderOperation::OT_LINE_STRIP_ADJ;
         }
         else if (val == "triangle_strip")
         {
             return RenderOperation::OT_TRIANGLE_STRIP;
         }
+        else if (val == "triangle_strip_adj")
+        {
+            return RenderOperation::OT_TRIANGLE_STRIP_ADJ;
+        }
         else if (val == "triangle_fan")
         {
             return RenderOperation::OT_TRIANGLE_FAN;
+        }
+        else if (val == "triangle_list_adj")
+        {
+            return RenderOperation::OT_TRIANGLE_LIST_ADJ;
         }
         else 
         {
@@ -250,14 +272,26 @@ namespace Ogre {
         case RenderOperation::OT_LINE_LIST:
             return "line_list";
             break;
+        case RenderOperation::OT_LINE_LIST_ADJ:
+            return "line_list_adj";
+            break;
         case RenderOperation::OT_LINE_STRIP:
             return "line_strip";
+            break;
+        case RenderOperation::OT_LINE_STRIP_ADJ:
+            return "line_strip_adj";
             break;
         case RenderOperation::OT_TRIANGLE_STRIP:
             return "triangle_strip";
             break;
+        case RenderOperation::OT_TRIANGLE_STRIP_ADJ:
+            return "triangle_strip_adj";
+            break;
         case RenderOperation::OT_TRIANGLE_FAN:
             return "triangle_fan";
+            break;
+        case RenderOperation::OT_TRIANGLE_LIST_ADJ:
+            return "triangle_list_adj";
             break;
         case RenderOperation::OT_TRIANGLE_LIST:
         default:

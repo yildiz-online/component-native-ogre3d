@@ -26,7 +26,6 @@ THE SOFTWARE.
 -----------------------------------------------------------------------------
 */
 #include "OgreBspLevel.h"
-#include "OgreBspResourceManager.h"
 #include "OgreException.h"
 #include "OgreMaterial.h"
 #include "OgreMaterialManager.h"
@@ -482,7 +481,7 @@ namespace Ogre {
             }
             else
             {
-                LogManager::getSingleton().logMessage("!!! Unknown Face Type !!!", LML_CRITICAL);
+                LogManager::getSingleton().logError("Unknown Face Type");
             }
 
             // progress reporting
@@ -880,7 +879,7 @@ namespace Ogre {
             {
                 StringUtil::toLowerCase(line);
                 // Remove quotes
-                while( ( pos = line.find("\"",0) ) != String::npos )
+                while( ( pos = line.find('\"',0) ) != String::npos )
                 {
                     line = line.substr(0,pos) + line.substr(pos+1,line.length()-(pos+1));
                 }
@@ -929,7 +928,7 @@ namespace Ogre {
         MovableToNodeMap::iterator i = mMovableToNodeMap.find(mov);
         if (i != mMovableToNodeMap.end())
         {
-            list<BspNode*>::type::iterator nodeit, nodeitend;
+            std::list<BspNode*>::iterator nodeit, nodeitend;
             nodeitend = i->second.end();
             for (nodeit = i->second.begin(); nodeit != nodeitend; ++nodeit)
             {
@@ -952,7 +951,7 @@ namespace Ogre {
             // Insert all the time, will get current if already there
             std::pair<MovableToNodeMap::iterator, bool> p = 
                 mMovableToNodeMap.insert(
-                MovableToNodeMap::value_type(mov, list<BspNode*>::type()));
+                MovableToNodeMap::value_type(mov, std::list<BspNode*>()));
 
             p.first->second.push_back(node);
 
@@ -990,7 +989,7 @@ namespace Ogre {
         MovableToNodeMap::iterator i = mMovableToNodeMap.find(mov);
         if (i != mMovableToNodeMap.end())
         {
-            list<BspNode*>::type::iterator nodeit, nodeitend;
+            std::list<BspNode*>::iterator nodeit, nodeitend;
             nodeitend = i->second.end();
             for (nodeit = i->second.begin(); nodeit != nodeitend; ++nodeit)
             {

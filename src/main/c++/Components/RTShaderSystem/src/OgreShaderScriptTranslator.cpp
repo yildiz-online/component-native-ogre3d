@@ -24,11 +24,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 -----------------------------------------------------------------------------
 */
-#include "OgreShaderScriptTranslator.h"
-#include "OgrePass.h"
-#include "OgreTechnique.h"
-#include "OgreShaderGenerator.h"
-
+#include "OgreShaderPrecompiledHeaders.h"
 
 namespace Ogre {
 namespace RTShader {
@@ -46,11 +42,11 @@ void SGScriptTranslator::translate(ScriptCompiler* compiler, const AbstractNodeP
     ObjectAbstractNode* parent = static_cast<ObjectAbstractNode*>(obj->parent);
 
     // Translate section within a pass context.
-    if (parent->cls == "pass")
+    if (parent->id == ID_PASS)
     {
         translatePass(compiler, node);
     }
-    if (parent->cls == "texture_unit")
+    if (parent->id == ID_TEXTURE_UNIT)
     {
         translateTextureUnit(compiler, node);
     }
@@ -106,8 +102,7 @@ void SGScriptTranslator::translateTextureUnit(ScriptCompiler* compiler, const Ab
     if (techniqueCreated == false)
     {
         // Create the shader based technique.
-        techniqueCreated = shaderGenerator->createShaderBasedTechnique(*material,
-            technique->getSchemeName(), 
+        techniqueCreated = shaderGenerator->createShaderBasedTechnique(technique, 
             dstTechniqueSchemeName,
             shaderGenerator->getCreateShaderOverProgrammablePass());
     }
@@ -163,8 +158,7 @@ void SGScriptTranslator::translatePass(ScriptCompiler* compiler, const AbstractN
 
 
     // Create the shader based technique.
-    techniqueCreated = shaderGenerator->createShaderBasedTechnique(*material,
-        technique->getSchemeName(), 
+    techniqueCreated = shaderGenerator->createShaderBasedTechnique(technique, 
         dstTechniqueSchemeName,
         shaderGenerator->getCreateShaderOverProgrammablePass());
 
@@ -188,20 +182,19 @@ void SGScriptTranslator::translatePass(ScriptCompiler* compiler, const AbstractN
                     }
                     else
                     {
-                        int lightCount[3];
-
-                        if (false == SGScriptTranslator::getInts(prop->values.begin(), prop->values.end(), lightCount, 3))
-                        {
-                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
-                        }
-                        else
+                        std::vector<int> lightCount;
+                        if (getVector(prop->values.begin(), prop->values.end(), lightCount, 3))
                         {
                             shaderGenerator->createScheme(dstTechniqueSchemeName);
                             RenderState* renderState = shaderGenerator->getRenderState(dstTechniqueSchemeName, 
                                 material->getName(), material->getGroup(), pass->getIndex());
 
-                            renderState->setLightCount(lightCount);
+                            renderState->setLightCount(lightCount.data());
                             renderState->setLightCountAutoUpdate(false);
+                        }
+                        else
+                        {
+                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
                         }
                     }                   
                 }

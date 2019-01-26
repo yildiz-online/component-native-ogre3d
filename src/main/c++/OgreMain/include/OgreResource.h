@@ -48,31 +48,22 @@ namespace Ogre {
     /** \addtogroup Resources
     *  @{
     */
-    /** Abstract class representing a loadable resource (e.g. textures, sounds etc)
-        @remarks
-            Resources are data objects that must be loaded and managed throughout
-            an application. A resource might be a mesh, a texture, or any other
-            piece of data - the key thing is that they must be identified by 
-            a name which is unique, must be loaded only once,
-            must be managed efficiently in terms of retrieval, and they may
-            also be unloadable to free memory up when they have not been used for
-            a while and the memory budget is under stress.
-        @par
-            All Resource instances must be a member of a resource group; see
-            ResourceGroupManager for full details.
-        @par
-            Subclasses must implement:
-            <ol>
-            <li>A constructor, overriding the same parameters as the constructor
-                defined by this class. Subclasses are not allowed to define
-                constructors with other parameters; other settings must be
-                settable through accessor methods before loading.</li>
-            <li>The loadImpl() and unloadImpl() methods - mSize must be set 
-                after loadImpl()</li>
-            <li>StringInterface ParamCommand and ParamDictionary setups
-                in order to allow setting of core parameters (prior to load)
-                through a generic interface.</li>
-            </ol>
+    /** Abstract class representing a loadable resource
+
+        @see @ref Resource-Management
+
+        Subclasses must implement:
+        <ol>
+        <li>A constructor, overriding the same parameters as the constructor
+            defined by this class. Subclasses are not allowed to define
+            constructors with other parameters; other settings must be
+            settable through accessor methods before loading.</li>
+        <li>The loadImpl() and unloadImpl() methods - mSize must be set 
+            after loadImpl()</li>
+        <li>StringInterface ParamCommand and ParamDictionary setups
+            in order to allow setting of core parameters (prior to load)
+            through a generic interface.</li>
+        </ol>
     */
     class _OgreExport Resource : public StringInterface, public ResourceAlloc
     {
@@ -81,20 +72,7 @@ namespace Ogre {
         class Listener
         {
         public:
-            Listener() {}
             virtual ~Listener() {}
-
-            /** Callback to indicate that background loading has completed.
-            @deprecated
-                Use Listener::loadingComplete instead.
-            */
-            OGRE_DEPRECATED virtual void backgroundLoadingComplete(Resource*) {}
-
-            /** Callback to indicate that background preparing has completed.
-            @deprecated
-                Use Listener::preparingComplete instead.
-            */
-            OGRE_DEPRECATED virtual void backgroundPreparingComplete(Resource*) {}
 
             /** Called whenever the resource finishes loading. 
             @remarks
@@ -166,10 +144,10 @@ namespace Ogre {
         AtomicScalar<LoadingState> mLoadingState;
         /// Is this resource going to be background loaded? Only applicable for multithreaded
         volatile bool mIsBackgroundLoaded;
-        /// The size of the resource in bytes
-        size_t mSize;
         /// Is this file manually loaded?
         bool mIsManual;
+        /// The size of the resource in bytes
+        size_t mSize;
         /// Origin of this resource (e.g. script name) - optional
         String mOrigin;
         /// Optional manual loader; if provided, data is loaded from here instead of a file
@@ -177,7 +155,7 @@ namespace Ogre {
         /// State count, the number of times this resource has changed state
         size_t mStateCount;
 
-        typedef set<Listener*>::type ListenerList;
+        typedef std::set<Listener*> ListenerList;
         ListenerList mListenerList;
         OGRE_MUTEX(mListenerListMutex);
 
@@ -185,7 +163,7 @@ namespace Ogre {
         */
         Resource() 
             : mCreator(0), mHandle(0), mLoadingState(LOADSTATE_UNLOADED), 
-            mIsBackgroundLoaded(false), mSize(0), mIsManual(0), mLoader(0), mStateCount(0)
+              mIsBackgroundLoaded(0), mIsManual(0), mSize(0), mLoader(0), mStateCount(0)
         { 
         }
 
@@ -305,15 +283,6 @@ namespace Ogre {
             return mIsManual;
         }
 
-        /** Set "Is this resource manually loaded?"
-        @deprecated do not use
-        */
-        OGRE_DEPRECATED virtual void setManuallyLoaded(bool isManual)
-        {
-            mIsManual = isManual;
-        }
-
-
         /** Unloads the resource; this is not permanent, the resource can be
             reloaded later if required.
         */
@@ -356,15 +325,6 @@ namespace Ogre {
         { 
             // No lock required to read this state since no modify
             return (mLoadingState.load() == LOADSTATE_LOADED);
-        }
-
-        /** Change the Resource loading state to loaded.
-        @deprecated do not use
-        */
-        OGRE_DEPRECATED virtual void setToLoaded(void)
-        { 
-            // No lock required to read this state since no modify
-            mLoadingState.store(LOADSTATE_LOADED);
         }
 
         /** Returns whether the resource is currently in the process of

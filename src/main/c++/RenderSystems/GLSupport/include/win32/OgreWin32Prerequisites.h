@@ -28,6 +28,7 @@ THE SOFTWARE.
 #ifndef __OgreWin32Prerequisites_H__
 #define __OgreWin32Prerequisites_H__
 
+#include "OgrePlatform.h"
 #include <windows.h>
 #include <wingdi.h>
 #define WGL_WGLEXT_PROTOTYPES
@@ -52,8 +53,8 @@ typedef void GLvoid;
 
 #include <GL/wglext.h>
 
-#include <OgreGLSupportPrerequisites.h>
-#include <OgrePrerequisites.h>
+#include "OgreGLSupportPrerequisites.h"
+#include "OgrePrerequisites.h"
 
 namespace Ogre {
     // Forward declarations

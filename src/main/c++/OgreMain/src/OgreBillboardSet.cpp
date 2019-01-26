@@ -28,18 +28,8 @@ THE SOFTWARE.
 #include "OgreStableHeaders.h"
 
 #include "OgreBillboardSet.h"
-
 #include "OgreBillboard.h"
-#include "OgreMaterialManager.h"
-#include "OgreHardwareBufferManager.h"
-#include "OgreCamera.h"
-#include "OgreMath.h"
-#include "OgreSphere.h"
-#include "OgreRoot.h"
-#include "OgreRenderSystem.h"
-#include "OgreException.h"
-#include "OgreSceneNode.h"
-#include "OgreLogManager.h"
+
 #include <algorithm>
 
 namespace Ogre {
@@ -57,8 +47,6 @@ namespace Ogre {
         mAccurateFacing(false),
         mAllDefaultRotation(true),
         mWorldSpace(false),
-        mVertexData(0),
-        mIndexData(0),
         mCullIndividual( false ),
         mBillboardType(BBT_POINT),
         mCommonDirection(Ogre::Vector3::UNIT_Z),
@@ -92,8 +80,6 @@ namespace Ogre {
         mAccurateFacing(false),
         mAllDefaultRotation(true),
         mWorldSpace(false),
-        mVertexData(0),
-        mIndexData(0),
         mCullIndividual( false ),
         mBillboardType(BBT_POINT),
         mCommonDirection(Ogre::Vector3::UNIT_Z),
@@ -561,15 +547,16 @@ namespace Ogre {
             ActiveBillboardList::iterator i, iend;
 
             iend = mActiveBillboards.end();
-            Matrix4 invWorld;
-            if (mWorldSpace && getParentSceneNode())
+            Affine3 invWorld;
+            bool invert = mWorldSpace && getParentSceneNode();
+            if (invert)
                 invWorld = getParentSceneNode()->_getFullTransform().inverse();
 
             for (i = mActiveBillboards.begin(); i != iend; ++i)
             {
                 Vector3 pos = (*i)->getPosition();
                 // transform from world space to local space
-                if (mWorldSpace && getParentSceneNode())
+                if (invert)
                     pos = invWorld * pos;
                 min.makeFloor(pos);
                 max.makeCeil(pos);
@@ -662,7 +649,7 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     void BillboardSet::getRenderOperation(RenderOperation& op)
     {
-        op.vertexData = mVertexData;
+        op.vertexData = mVertexData.get();
         op.vertexData->vertexStart = 0;
 
         if (mPointRendering)
@@ -680,7 +667,7 @@ namespace Ogre {
 
             op.vertexData->vertexCount = mNumVisibleBillboards * 4;
 
-            op.indexData = mIndexData;
+            op.indexData = mIndexData.get();
             op.indexData->indexCount = mNumVisibleBillboards * 6;
             op.indexData->indexStart = 0;
         }
@@ -773,7 +760,7 @@ namespace Ogre {
                 "expect.");
         }
 
-        mVertexData = OGRE_NEW VertexData();
+        mVertexData.reset(new VertexData());
         if (mPointRendering)
             mVertexData->vertexCount = mPoolSize;
         else
@@ -808,7 +795,7 @@ namespace Ogre {
 
         if (!mPointRendering)
         {
-            mIndexData  = OGRE_NEW IndexData();
+            mIndexData.reset(new IndexData());
             mIndexData->indexStart = 0;
             mIndexData->indexCount = mPoolSize * 6;
 
@@ -859,21 +846,11 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     void BillboardSet::_destroyBuffers(void)
     {
-        if (mVertexData)
-        {
-            OGRE_DELETE mVertexData;
-            mVertexData = 0;
-        }
-        if (mIndexData)
-        {
-            OGRE_DELETE mIndexData;
-            mIndexData = 0;
-        }
-
+        mVertexData.reset();
+        mIndexData.reset();
         mMainBuf.reset();
 
         mBuffersCreated = false;
-
     }
     //-----------------------------------------------------------------------
     unsigned int BillboardSet::getPoolSize(void) const
@@ -985,7 +962,7 @@ namespace Ogre {
 
         getWorldTransforms(&xworld);
 
-        sph.setCenter(xworld.transformAffine(bill.mPosition));
+        sph.setCenter(xworld * bill.mPosition);
 
         if (bill.mOwnDimensions)
         {

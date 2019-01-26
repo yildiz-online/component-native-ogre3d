@@ -25,11 +25,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 -----------------------------------------------------------------------------
 */
-#include "OgreLodOutsideMarker.h"
-#include "OgreHardwareBufferManager.h"
-#include "OgreMeshManager.h"
-#include "OgreMesh.h"
-#include "OgreSubMesh.h"
+#include "OgreMeshLodPrecompiledHeaders.h"
 
 namespace Ogre
 {
@@ -450,8 +446,8 @@ Ogre::MeshPtr LodOutsideMarker::createConvexHullMesh(const String& meshName, con
     MeshPtr mesh = MeshManager::getSingleton().createManual(meshName, resourceGroupName, NULL);
     SubMesh* subMesh = mesh->createSubMesh();
 
-    vector<Real>::type vertexBuffer;
-    vector<unsigned short>::type indexBuffer;
+    std::vector<Real> vertexBuffer;
+    std::vector<unsigned short> indexBuffer;
     // 3 position/triangle * 3 Real/position
     vertexBuffer.reserve(mHull.size() * 9);
     // 3 index / triangle
@@ -587,15 +583,6 @@ void LodOutsideMarker::markVertices()
             }
         }
     }
-}
-
-void LodOutsideMarker::CHTriangle::computeNormal()
-{
-    Vector3 e1 = vertex[1]->position - vertex[0]->position;
-    Vector3 e2 = vertex[2]->position - vertex[1]->position;
-
-    normal = e1.crossProduct(e2);
-    normal.normalise();
 }
 
 }
