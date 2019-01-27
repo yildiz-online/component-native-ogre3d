@@ -18,13 +18,13 @@ cmake ../../c++ \
 -DOGRE_BUILD_XSIEXPORTER=FALSE \
 -DOGRE_BUILD_LIBS_AS_FRAMEWORKS=FALSE \
 -DOGRE_BUILD_TESTS=FALSE \
+-DOGRE_BUILD_DEPENDENCIES=FALSE \
 -DOGRE_INSTALL_CMAKE=FALSE \
 -DOGRE_INSTALL_SAMPLES=FALSE \
 -DOGRE_INSTALL_TOOLS=FALSE \
 -DOGRE_INSTALL_DOCS=FALSE \
 -DOGRE_INSTALL_SAMPLES_SOURCE=FALSE \
 -DOGRE_INSTALL_PDB=FALSE \
--DOGRE_BUILD_DEPENDENCIES=FALSE \
 -DZLIB_LIBRARY="$PWD/ogredeps/win64/lib/Release/libzlib.a" \
 -DZLIB_INCLUDE_DIR="$PWD/ogredeps/win64/include" \
 -DZZip_INCLUDE_DIRS="$PWD/ogredeps/win64/include" \
@@ -33,6 +33,7 @@ cmake ../../c++ \
 -DFreeImage_INCLUDE_DIR="$PWD/ogredeps/win64/include" \
 -DFreeImage_LIBRARY="$PWD/ogredeps/win64/lib/Release/libFreeImage.a" \
 -DCMAKE_INSTALL_PREFIX="../../../../target/classes/win64" \
+-DOGRE_CONFIG_THREADS=0 \
 -DCMAKE_TOOLCHAIN_FILE=mingw-toolchain.cmake
 
 make install
