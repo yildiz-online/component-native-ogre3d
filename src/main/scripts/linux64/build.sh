@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 mkdir -p ../../../../target/classes/linux64
 
 cmake ../../c++ \
