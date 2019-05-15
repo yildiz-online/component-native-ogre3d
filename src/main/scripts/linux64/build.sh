@@ -76,5 +76,5 @@ rm CPackSourceConfig.cmake
 rm LICENSE.txt
 rm version.txt
 
-return $r1
+exit ${r1}
 
