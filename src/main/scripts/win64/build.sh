@@ -78,4 +78,4 @@ rm LICENSE.txt
 rm version.txt
 rm ZZIPlib-master.tar.gz
 
-return $r1
+exit ${r1}
