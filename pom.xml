@@ -45,6 +45,11 @@
     <artifactId>parent-component-native</artifactId>
     <version>2.2.4</version>
   </parent>
+  
+  <properties>
+    <component-native-ogredeps>1.0.2-SNAPSHOT</component-native-ogredeps>
+    <component-native-freeimage.version>3.18.0.1-SNAPSHOT</component-native-freeimage.version>
+  </properties>
 
   <build>
     <plugins>
@@ -67,7 +72,27 @@
                 <artifactItem>
                   <groupId>be.yildiz-games</groupId>
                   <artifactId>component-native-ogredeps</artifactId>
+                  <version>${component-native-ogredeps}</version>
                   <outputDirectory>src/main/scripts/linux64/ogredeps/</outputDirectory>
+                  <includes>linux64/**/*.*</includes>
+                </artifactItem>
+              </artifactItems>
+            </configuration>
+          </execution>
+          <executions>
+          <execution>
+            <id>unpack-freeimage-linux64</id>
+            <phase>process-resources</phase>
+            <goals>
+              <goal>unpack</goal>
+            </goals>
+            <configuration>
+              <artifactItems>
+                <artifactItem>
+                  <groupId>be.yildiz-games</groupId>
+                  <artifactId>component-native-freeimage</artifactId>
+                  <version>${component-native-freeimage}</version>
+                  <outputDirectory>src/main/scripts/linux64/freeimage/</outputDirectory>
                   <includes>linux64/**/*.*</includes>
                 </artifactItem>
               </artifactItems>
@@ -84,7 +109,26 @@
                 <artifactItem>
                   <groupId>be.yildiz-games</groupId>
                   <artifactId>component-native-ogredeps</artifactId>
+                  <version>${component-native-ogredeps}</version>
                   <outputDirectory>src/main/scripts/win64/ogredeps/</outputDirectory>
+                  <includes>win64/**/*.*</includes>
+                </artifactItem>
+              </artifactItems>
+            </configuration>
+          </execution>
+          <execution>
+            <id>unpack-freeimage-win64</id>
+            <phase>process-resources</phase>
+            <goals>
+              <goal>unpack</goal>
+            </goals>
+            <configuration>
+              <artifactItems>
+                <artifactItem>
+                  <groupId>be.yildiz-games</groupId>
+                  <artifactId>component-native-freeimage</artifactId>
+                  <version>${component-native-freeimage}</version>
+                  <outputDirectory>src/main/scripts/win64/freeimage/</outputDirectory>
                   <includes>win64/**/*.*</includes>
                 </artifactItem>
               </artifactItems>
@@ -99,7 +143,12 @@
     <dependency>
       <groupId>be.yildiz-games</groupId>
       <artifactId>component-native-ogredeps</artifactId>
-      <version>1.0.2-SNAPSHOT</version>
+      <version>${component-native-ogredeps}</version>
+    </dependency>
+    <dependency>
+      <groupId>be.yildiz-games</groupId>
+      <artifactId>component-native-freeimage</artifactId>
+      <version>${component-native-freeimage}</version>
     </dependency>
   </dependencies>
 </project>
