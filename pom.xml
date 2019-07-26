@@ -79,7 +79,6 @@
               </artifactItems>
             </configuration>
           </execution>
-          <executions>
           <execution>
             <id>unpack-freeimage-linux64</id>
             <phase>process-resources</phase>
