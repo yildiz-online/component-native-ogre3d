@@ -32,8 +32,8 @@ cmake ../../c++ \
 -DZZip_INCLUDE_DIRS="$PWD/ogredeps/win64/include" \
 -DFREETYPE_INCLUDE_DIRS="$PWD/ogredeps/win64/include" \
 -DFREETYPE_LIBRARY="$PWD/ogredeps/win64/lib/Release/libfreetype.a" \
--DFreeImage_INCLUDE_DIR="$PWD/ogredeps/win64/include" \
--DFreeImage_LIBRARY="$PWD/ogredeps/win64/lib/Release/libFreeImage.a" \
+-DFreeImage_INCLUDE_DIR="$PWD/freeimage/win64/include" \
+-DFreeImage_LIBRARY="$PWD/freeimage/win64/lib/libfreeimage.a" \
 -DCMAKE_INSTALL_PREFIX="../../../../target/classes/win64" \
 -DOGRE_CONFIG_THREADS=0 \
 -DCMAKE_TOOLCHAIN_FILE=mingw-toolchain.cmake
