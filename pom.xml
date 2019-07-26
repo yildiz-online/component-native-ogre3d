@@ -47,7 +47,7 @@
   </parent>
   
   <properties>
-    <component-native-ogredeps>1.0.2-SNAPSHOT</component-native-ogredeps>
+    <component-native-ogredeps.version>1.0.2-SNAPSHOT</component-native-ogredeps.version>
     <component-native-freeimage.version>3.18.0.1-SNAPSHOT</component-native-freeimage.version>
   </properties>
 
@@ -72,7 +72,7 @@
                 <artifactItem>
                   <groupId>be.yildiz-games</groupId>
                   <artifactId>component-native-ogredeps</artifactId>
-                  <version>${component-native-ogredeps}</version>
+                  <version>${component-native-ogredeps.version}</version>
                   <outputDirectory>src/main/scripts/linux64/ogredeps/</outputDirectory>
                   <includes>linux64/**/*.*</includes>
                 </artifactItem>
@@ -90,7 +90,7 @@
                 <artifactItem>
                   <groupId>be.yildiz-games</groupId>
                   <artifactId>component-native-freeimage</artifactId>
-                  <version>${component-native-freeimage}</version>
+                  <version>${component-native-freeimage.version}</version>
                   <outputDirectory>src/main/scripts/linux64/freeimage/</outputDirectory>
                   <includes>linux64/**/*.*</includes>
                 </artifactItem>
@@ -108,7 +108,7 @@
                 <artifactItem>
                   <groupId>be.yildiz-games</groupId>
                   <artifactId>component-native-ogredeps</artifactId>
-                  <version>${component-native-ogredeps}</version>
+                  <version>${component-native-ogredeps.version}</version>
                   <outputDirectory>src/main/scripts/win64/ogredeps/</outputDirectory>
                   <includes>win64/**/*.*</includes>
                 </artifactItem>
@@ -126,7 +126,7 @@
                 <artifactItem>
                   <groupId>be.yildiz-games</groupId>
                   <artifactId>component-native-freeimage</artifactId>
-                  <version>${component-native-freeimage}</version>
+                  <version>${component-native-freeimage.version}</version>
                   <outputDirectory>src/main/scripts/win64/freeimage/</outputDirectory>
                   <includes>win64/**/*.*</includes>
                 </artifactItem>
@@ -142,12 +142,12 @@
     <dependency>
       <groupId>be.yildiz-games</groupId>
       <artifactId>component-native-ogredeps</artifactId>
-      <version>${component-native-ogredeps}</version>
+      <version>${component-native-ogredeps.version}</version>
     </dependency>
     <dependency>
       <groupId>be.yildiz-games</groupId>
       <artifactId>component-native-freeimage</artifactId>
-      <version>${component-native-freeimage}</version>
+      <version>${component-native-freeimage.version}</version>
     </dependency>
   </dependencies>
 </project>
