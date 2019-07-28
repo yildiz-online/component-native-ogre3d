@@ -27,8 +27,8 @@ cmake ../../c++ \
 -DOGRE_INSTALL_DOCS=FALSE \
 -DOGRE_INSTALL_SAMPLES_SOURCE=FALSE \
 -DOGRE_INSTALL_PDB=FALSE \
--DFreeImage_INCLUDE_DIR="$PWD/ogredeps/linux64/include" \
--DFreeImage_LIBRARY="$PWD/ogredeps/linux64/lib/libFreeImage.a" \
+-DFreeImage_INCLUDE_DIR="$PWD/freeimage/linux64/include" \
+-DFreeImage_LIBRARY="$PWD/freeimage/linux64/lib/libFreeImage.a" \
 -DZLIB_LIBRARY="$PWD/ogredeps/linux64/lib/libzlib.a" \
 -DZLIB_INCLUDE_DIR="$PWD/ogredeps/linux64/include" \
 -DZZip_INCLUDE_DIRS="$PWD/ogredeps/linux64/include" \
