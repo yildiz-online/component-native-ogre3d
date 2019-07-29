@@ -37,7 +37,7 @@ cmake ../../c++ \
 -DCMAKE_INSTALL_PREFIX="../../../../target/classes/linux64" \
 -G "Unix Makefiles"
 
-make install
+#make install
 r1=$?
 
 make clean
